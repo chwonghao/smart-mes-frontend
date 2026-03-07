@@ -5,7 +5,7 @@ import MainLayout from './components/layout/MainLayout';
 function App() {
   return (
     <BrowserRouter>
-      {/* Toàn bộ các trang (AppRoutes) sẽ được render vào phần {children} của MainLayout */}
+      {/* Đã bỏ thẻ div bọc bên ngoài */}
       <MainLayout>
         <AppRoutes />
       </MainLayout>

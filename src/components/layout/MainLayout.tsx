@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Layout, Menu, Button } from 'antd';
+import { Layout, Menu, Button, theme, Badge, Popover, List, Typography } from 'antd';
 import {
   MenuFoldOutlined,
   MenuUnfoldOutlined,
@@ -10,15 +10,22 @@ import {
   UserOutlined
 } from '@ant-design/icons';
 import { useNavigate, useLocation } from 'react-router-dom';
+import { useWebSocket } from '../../hooks/useWebSocket'; // Đảm bảo đường dẫn này đúng với file hook bạn tạo
 
 const { Header, Sider, Content } = Layout;
 
 const MainLayout = ({ children }: { children: React.ReactNode }) => {
   const [collapsed, setCollapsed] = useState(false);
   const navigate = useNavigate();
-  const location = useLocation(); // Hook này giúp menu biết đang ở trang nào để bôi màu
+  const location = useLocation();
 
-  // Cấu hình Cây Menu
+  // Sử dụng Hook WebSocket để nhận thông báo real-time
+  const { notifications, unreadCount, clearCount } = useWebSocket('/topic/alerts');
+
+  const {
+    token: { colorBgContainer, borderRadiusLG },
+  } = theme.useToken();
+
   const menuItems = [
     {
       key: '/',
@@ -31,7 +38,6 @@ const MainLayout = ({ children }: { children: React.ReactNode }) => {
       label: 'Dữ liệu gốc',
       children: [
         { key: '/master-data/work-centers', label: 'Máy móc & Khu vực' },
-        // Chỗ này sau này thêm Vật tư, BOM, Routing...
       ],
     },
     {
@@ -40,53 +46,88 @@ const MainLayout = ({ children }: { children: React.ReactNode }) => {
       label: 'Quản lý Sản xuất',
       children: [
         { key: '/production/work-orders', label: 'Lệnh sản xuất' },
-      ],
+      ]
     },
   ];
 
+  // Giao diện danh sách thông báo trong Popover
+  const notificationContent = (
+    <div style={{ width: 320 }}>
+      <List
+        size="small"
+        header={<div className="font-bold border-b pb-2">Thông báo mới nhất</div>}
+        dataSource={notifications}
+        style={{ maxHeight: 400, overflowY: 'auto' }}
+        renderItem={(item) => (
+          <List.Item className="hover:bg-gray-50 cursor-pointer transition-colors">
+            <List.Item.Meta
+              title={
+                <Typography.Text type={item.type === 'MACHINE_DOWN' ? 'danger' : 'warning'} strong>
+                  {item.type === 'MACHINE_DOWN' ? '⚠️ Sự cố máy' : '📌 Thông báo'}
+                </Typography.Text>
+              }
+              description={item.message}
+            />
+          </List.Item>
+        )}
+        locale={{ emptyText: 'Không có thông báo nào' }}
+      />
+    </div>
+  );
+
   return (
-    <Layout className="min-h-screen">
-      {/* CỘT BÊN TRÁI: SIDEBAR MENU */}
-      <Sider 
-        trigger={null} 
-        collapsible 
-        collapsed={collapsed} 
-        theme="light" 
-        className="shadow-md z-10"
-      >
+    <Layout style={{ minHeight: '100vh' }}>
+      <Sider trigger={null} collapsible collapsed={collapsed} theme="light" className="shadow-md">
         <div className="h-16 flex items-center justify-center border-b border-gray-100">
-          <span className={`font-black text-blue-600 transition-all ${collapsed ? 'text-xl' : 'text-2xl'}`}>
-            {collapsed ? 'MES' : 'Smart MES'}
-          </span>
+          <h1 className={`text-blue-600 font-bold transition-all ${collapsed ? 'text-xl' : 'text-2xl'}`}>
+            {collapsed ? 'MES' : 'SMART MES'}
+          </h1>
         </div>
         <Menu
-          theme="light"
           mode="inline"
-          selectedKeys={[location.pathname]} // Tự động highlight menu theo URL
-          defaultOpenKeys={['master-data', 'production']} // Mở sẵn các menu cha
+          selectedKeys={[location.pathname]}
+          defaultOpenKeys={['master-data', 'production']}
           items={menuItems}
-          onClick={({ key }) => navigate(key)} // Click vào menu thì chuyển trang
+          onClick={({ key }) => navigate(key)}
+          style={{ borderRight: 0 }}
         />
       </Sider>
 
-      {/* CỘT BÊN PHẢI: HEADER & CONTENT */}
       <Layout>
-        <Header className="bg-white p-0 flex justify-between items-center shadow-sm z-0 px-4 h-16 leading-[4rem]">
-          {/* Nút thu phóng menu */}
+        <Header 
+          style={{ 
+            padding: '0 16px', 
+            background: colorBgContainer, 
+            display: 'flex', 
+            justifyContent: 'space-between', 
+            alignItems: 'center',
+            boxShadow: '0 1px 2px 0 rgba(0, 0, 0, 0.05)'
+          }}
+        >
           <Button
             type="text"
             icon={collapsed ? <MenuUnfoldOutlined /> : <MenuFoldOutlined />}
             onClick={() => setCollapsed(!collapsed)}
-            className="text-lg w-16 h-16 hover:bg-gray-100"
+            style={{ fontSize: '16px', width: 64, height: 64 }}
           />
           
-          {/* Khu vực Profile & Thông báo */}
-          <div className="flex items-center gap-4 pr-4">
-            <Button 
-              type="text" 
-              shape="circle"
-              icon={<BellOutlined className="text-xl text-gray-600" />} 
-            />
+          <div className="flex items-center gap-6">
+            {/* Popover bao quanh Badge để hiển thị danh sách khi click */}
+            <Popover 
+              content={notificationContent} 
+              trigger="click" 
+              placement="bottomRight"
+              onOpenChange={(visible) => visible && clearCount()} // Xóa số unread khi mở
+            >
+              <Badge count={unreadCount} overflowCount={99} size="small">
+                <Button 
+                  type="text" 
+                  shape="circle" 
+                  icon={<BellOutlined className="text-xl text-gray-600" />} 
+                />
+              </Badge>
+            </Popover>
+
             <div className="flex items-center gap-2 cursor-pointer hover:bg-gray-50 p-2 rounded-md transition-all">
               <div className="w-8 h-8 rounded-full bg-blue-600 text-white flex items-center justify-center font-bold">
                 <UserOutlined />
@@ -96,8 +137,16 @@ const MainLayout = ({ children }: { children: React.ReactNode }) => {
           </div>
         </Header>
 
-        {/* KHU VỰC HIỂN THỊ NỘI DUNG CHÍNH */}
-        <Content className="m-6 p-6 bg-white rounded-xl shadow-sm min-h-[280px] overflow-auto">
+        <Content 
+          style={{ 
+            margin: '24px 16px', 
+            padding: 24, 
+            minHeight: 280, 
+            background: colorBgContainer,
+            borderRadius: borderRadiusLG,
+            overflow: 'initial'
+          }}
+        >
           {children}
         </Content>
       </Layout>

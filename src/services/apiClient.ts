@@ -18,7 +18,7 @@ apiClient.interceptors.response.use(
   (error) => {
     // Nơi xử lý lỗi tập trung (Ví dụ: Backend sập, lỗi 400, 500...)
     const errorMessage = error.response?.data?.message || error.message || "Lỗi kết nối đến máy chủ!";
-    console.error("🚨 API Error: ", errorMessage);
+    console.error("API Error: ", errorMessage);
     
     // Ở các bài sau, chúng ta sẽ gắn thông báo lỗi UI (Toast/Message) vào đây
     return Promise.reject(error);
