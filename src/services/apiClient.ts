@@ -1,26 +1,30 @@
 import axios from 'axios';
 
-// Tạo một "bản sao" của axios với các cấu hình mặc định
 const apiClient = axios.create({
-  baseURL: 'http://localhost:8080/api/v1', // Trỏ thẳng vào Backend Spring Boot của bạn
-  timeout: 10000, // Quá 10 giây không phản hồi sẽ tự động báo lỗi mạng
+  baseURL: 'http://localhost:8080/api/v1',
   headers: {
     'Content-Type': 'application/json',
   },
 });
 
-// Interceptor: "Người gác cổng" đón lõng mọi dữ liệu trả về từ Server
+// Trước khi gửi request đi: Nhét Token vào giỏ xách (Header)
+apiClient.interceptors.request.use((config) => {
+  const token = localStorage.getItem('token');
+  if (token) {
+    config.headers.Authorization = `Bearer ${token}`;
+  }
+  return config;
+});
+
+// Sau khi nhận kết quả về: Nếu Backend báo 401 (Hết hạn / Lỗi Token) -> Đuổi ra màn Login
 apiClient.interceptors.response.use(
-  (response) => {
-    // Chỉ lấy phần data lõi, giúp các file UI gọi API không cần gõ .data nhiều lần
-    return response.data;
-  },
+  (response) => response,
   (error) => {
-    // Nơi xử lý lỗi tập trung (Ví dụ: Backend sập, lỗi 400, 500...)
-    const errorMessage = error.response?.data?.message || error.message || "Lỗi kết nối đến máy chủ!";
-    console.error("API Error: ", errorMessage);
-    
-    // Ở các bài sau, chúng ta sẽ gắn thông báo lỗi UI (Toast/Message) vào đây
+    if (error.response && error.response.status === 401) {
+      localStorage.removeItem('token');
+      localStorage.removeItem('fullName');
+      window.location.href = '/login'; // Chuyển hướng cứng về Login
+    }
     return Promise.reject(error);
   }
 );

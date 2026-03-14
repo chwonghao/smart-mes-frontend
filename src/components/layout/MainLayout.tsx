@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Layout, Menu, Button, theme, Badge, Popover, List, Typography } from 'antd';
+import { Layout, Menu, Button, theme, Badge, Popover, List, Typography, Dropdown } from 'antd';
 import {
   MenuFoldOutlined,
   MenuUnfoldOutlined,
@@ -7,25 +7,44 @@ import {
   DatabaseOutlined,
   BuildOutlined,
   BellOutlined,
-  UserOutlined,
-  SettingOutlined
+  SettingOutlined,
+  LogoutOutlined
 } from '@ant-design/icons';
-import { useNavigate, useLocation } from 'react-router-dom';
-import { useWebSocket } from '../../hooks/useWebSocket'; // Đảm bảo đường dẫn này đúng với file hook bạn tạo
+import { useNavigate, useLocation, Outlet } from 'react-router-dom';
+import { useWebSocket } from '../../hooks/useWebSocket'; 
 
 const { Header, Sider, Content } = Layout;
 
-const MainLayout = ({ children }: { children: React.ReactNode }) => {
+const MainLayout: React.FC = () => {
   const [collapsed, setCollapsed] = useState(false);
   const navigate = useNavigate();
   const location = useLocation();
 
-  // Sử dụng Hook WebSocket để nhận thông báo real-time
   const { notifications, unreadCount, clearCount } = useWebSocket('/topic/alerts');
 
   const {
     token: { colorBgContainer, borderRadiusLG },
   } = theme.useToken();
+
+  // LẤY THÔNG TIN TỪ LOCAL STORAGE (Người dùng vừa đăng nhập)
+  const fullName = localStorage.getItem('fullName') || 'Khách';
+  const role = localStorage.getItem('role') || 'UNKNOWN';
+
+  // Dịch Role code ra tiếng Việt
+  const getRoleName = (roleCode: string) => {
+    switch (roleCode) {
+      case 'ROLE_ADMIN': return 'Giám đốc hệ thống';
+      case 'ROLE_QC': return 'Nhân viên QC';
+      case 'ROLE_WORKER': return 'Công nhân';
+      default: return 'Nhân sự';
+    }
+  };
+
+  // HÀM ĐĂNG XUẤT
+  const handleLogout = () => {
+    localStorage.clear(); // Xóa sạch Token và Thông tin
+    navigate('/login');   // Đá về trang đăng nhập
+  };
 
   const menuItems = [
     {
@@ -42,7 +61,7 @@ const MainLayout = ({ children }: { children: React.ReactNode }) => {
         { key: '/master-data/items', label: 'Sản phẩm & Vật tư'},
         { key: '/master-data/boms', label: 'Cấu trúc Sản phẩm'},
         { key: '/master-data/routings', label: 'Quy trình sản xuất'},
-        { key: 'master-data/workers', label: 'Danh sách Nhân sự '},
+        { key: '/master-data/workers', label: 'Danh sách Nhân sự '},
       ],
     },
     {
@@ -71,7 +90,6 @@ const MainLayout = ({ children }: { children: React.ReactNode }) => {
     },
   ];
 
-  // Giao diện danh sách thông báo trong Popover
   const notificationContent = (
     <div style={{ width: 320 }}>
       <List
@@ -95,6 +113,27 @@ const MainLayout = ({ children }: { children: React.ReactNode }) => {
       />
     </div>
   );
+
+  // MENU XỔ XUỐNG CỦA AVATAR
+  const userMenu = [
+    {
+      key: 'profile',
+      label: (
+        <div className="py-1 px-2">
+          <p className="m-0 text-xs text-gray-400">Đăng nhập với tên</p>
+          <p className="m-0 font-bold text-gray-800">{fullName}</p>
+        </div>
+      ),
+    },
+    { type: 'divider' as const },
+    {
+      key: 'logout',
+      danger: true,
+      icon: <LogoutOutlined />,
+      label: 'Đăng xuất',
+      onClick: handleLogout,
+    },
+  ];
 
   return (
     <Layout style={{ minHeight: '100vh' }}>
@@ -133,12 +172,11 @@ const MainLayout = ({ children }: { children: React.ReactNode }) => {
           />
           
           <div className="flex items-center gap-6">
-            {/* Popover bao quanh Badge để hiển thị danh sách khi click */}
             <Popover 
               content={notificationContent} 
               trigger="click" 
               placement="bottomRight"
-              onOpenChange={(visible) => visible && clearCount()} // Xóa số unread khi mở
+              onOpenChange={(visible) => visible && clearCount()}
             >
               <Badge count={unreadCount} overflowCount={99} size="small">
                 <Button 
@@ -149,12 +187,20 @@ const MainLayout = ({ children }: { children: React.ReactNode }) => {
               </Badge>
             </Popover>
 
-            <div className="flex items-center gap-2 cursor-pointer hover:bg-gray-50 p-2 rounded-md transition-all">
-              <div className="w-8 h-8 rounded-full bg-blue-600 text-white flex items-center justify-center font-bold">
-                <UserOutlined />
+            {/* BOX THÔNG TIN NGƯỜI DÙNG & MENU ĐĂNG XUẤT */}
+            <Dropdown menu={{ items: userMenu }} placement="bottomRight" trigger={['click']}>
+              <div className="flex items-center gap-2 cursor-pointer hover:bg-gray-50 p-2 rounded-md transition-all">
+                <div className="w-8 h-8 rounded-full bg-blue-600 text-white flex items-center justify-center font-bold">
+                  {/* Lấy chữ cái đầu của Tên làm Avatar */}
+                  {fullName.charAt(0).toUpperCase()}
+                </div>
+                <div className="hidden sm:flex flex-col leading-tight">
+                  <span className="font-medium text-gray-700">{fullName}</span>
+                  <span className="text-xs text-blue-500 font-semibold">{getRoleName(role)}</span>
+                </div>
               </div>
-              <span className="font-medium text-gray-700 hidden sm:block">Admin</span>
-            </div>
+            </Dropdown>
+
           </div>
         </Header>
 
@@ -168,7 +214,8 @@ const MainLayout = ({ children }: { children: React.ReactNode }) => {
             overflow: 'initial'
           }}
         >
-          {children}
+          {/* ĐÂY LÀ LỖ THOÁT ĐỂ REACT ROUTER BƠM CÁC TRANG CON VÀO */}
+          <Outlet />
         </Content>
       </Layout>
     </Layout>
