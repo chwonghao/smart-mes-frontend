@@ -144,7 +144,7 @@ const InventoryList: React.FC = () => {
         open={adjustModal.open} 
         onCancel={() => setAdjustModal({ open: false })}
         onOk={() => form.submit()}
-        destroyOnClose
+        destroyOnHidden
       >
         <Form form={form} layout="vertical" onFinish={handleAdjust}>
           <div className="mb-4 text-gray-500">

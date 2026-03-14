@@ -247,7 +247,7 @@ const WorkOrderList: React.FC = () => {
       </Modal>
 
       {/* POPUP 2: BÁO CÁO SẢN LƯỢNG */}
-      <Modal title="Báo cáo Sản lượng Thực tế" open={reportModal.open} onCancel={() => setReportModal({open: false})} onOk={() => reportForm.submit()} destroyOnClose>
+      <Modal title="Báo cáo Sản lượng Thực tế" open={reportModal.open} onCancel={() => setReportModal({open: false})} onOk={() => reportForm.submit()} destroyOnHidden>
         <Form form={reportForm} layout="vertical" onFinish={handleReport}>
           <Form.Item name="operatorName" label="Người thực hiện / Người báo cáo" rules={[{required: true, message: 'Vui lòng nhập tên người thực hiện!'}]}>
              <Input placeholder="VD: Nguyễn Văn A, Trần Thị B..." />

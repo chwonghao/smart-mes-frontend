@@ -12,12 +12,7 @@ const BOMManagement: React.FC = () => {
   const [form] = Form.useForm();
 
   useEffect(() => {
-    getItems()
-      .then((res: any) => {
-        const dataArray = Array.isArray(res) ? res : (res?.content || []);
-        setItems(dataArray);
-      })
-      .catch(() => message.error("Lỗi tải danh sách sản phẩm"));
+    getItems().then(setItems).catch(() => message.error("Lỗi tải danh sách sản phẩm"));
   }, []);
 
   // Lấy danh sách BOM khi người dùng chọn 1 sản phẩm
@@ -25,10 +20,7 @@ const BOMManagement: React.FC = () => {
     if (selectedParentId) {
       setLoading(true);
       getBomsByItem(selectedParentId)
-        .then((res: any) => {
-          const dataArray = Array.isArray(res) ? res : (res?.content || []);
-          setItems(dataArray);
-        })
+        .then(setBoms)
         .catch(() => message.error("Lỗi tải định mức vật tư"))
         .finally(() => setLoading(false));
     } else {
@@ -52,13 +44,13 @@ const BOMManagement: React.FC = () => {
   };
 
   const columns = [
-    {
-      title: 'Thành phần (Vật tư con)',
+    { 
+      title: 'Thành phần (Vật tư con)', 
       key: 'childItemName',
       render: (_: any, record: any) => {
         if (record.childItemName) return record.childItemName;
         if (record.childItem?.itemName) return record.childItem.itemName;
-
+        
         if (record.childItemId) {
           const matchedItem = items.find(i => i.id === record.childItemId);
           return matchedItem ? matchedItem.itemName : 'Chưa xác định';
@@ -66,13 +58,13 @@ const BOMManagement: React.FC = () => {
         return 'Chưa xác định';
       }
     },
-    {
-      title: 'Mã Vật tư',
+    { 
+      title: 'Mã Vật tư', 
       key: 'childItemCode',
       render: (_: any, record: any) => {
         if (record.childItemCode) return record.childItemCode;
         if (record.childItem?.itemCode) return record.childItem.itemCode;
-
+        
         if (record.childItemId) {
           const matchedItem = items.find(i => i.id === record.childItemId);
           return matchedItem ? matchedItem.itemCode : 'N/A';
@@ -85,10 +77,10 @@ const BOMManagement: React.FC = () => {
   ];
 
   return (
-    <Card title={<span className="text-xl font-bold"><ApartmentOutlined className="mr-2" /> Cấu trúc Sản phẩm (BOM)</span>}>
+    <Card title={<span className="text-xl font-bold"><ApartmentOutlined className="mr-2"/> Cấu trúc Sản phẩm (BOM)</span>}>
       <div className="mb-6 flex items-center gap-4 bg-gray-50 p-4 rounded-md border border-gray-200">
         <span className="font-semibold text-gray-700">Chọn Thành Phẩm:</span>
-        <Select
+        <Select 
           showSearch
           className="w-1/2"
           placeholder="Gõ tên hoặc mã sản phẩm để xem BOM..."

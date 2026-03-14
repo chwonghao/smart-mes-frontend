@@ -16,7 +16,7 @@ const WorkCenterList: React.FC = () => {
         setLoading(true);
         try {
             const response = await getWorkCenters();
-            setData(response as unknown as WorkCenter[]);
+            setData(response);
         } catch (error) {
             message.error('Không thể tải dữ liệu máy móc!');
         } finally {
@@ -164,7 +164,7 @@ const WorkCenterList: React.FC = () => {
                 open={isModalVisible}
                 onCancel={() => setIsModalVisible(false)}
                 footer={null}
-                destroyOnClose
+                destroyOnHidden
             >
                 <Form form={form} layout="vertical" onFinish={handleFinish} className="mt-4">
                     <Form.Item label="Mã máy (Code)" name="code" rules={[{ required: true, message: 'Vui lòng nhập mã máy!' }]}>

@@ -43,7 +43,7 @@ const MainLayout: React.FC = () => {
   // HÀM ĐĂNG XUẤT
   const handleLogout = () => {
     localStorage.clear(); // Xóa sạch Token và Thông tin
-    navigate('/login');   // Đá về trang đăng nhập
+    window.location.href = '/login';   // Đá về trang đăng nhập
   };
 
   const menuItems = [

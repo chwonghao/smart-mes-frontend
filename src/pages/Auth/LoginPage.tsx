@@ -22,7 +22,7 @@ const LoginPage: React.FC = () => {
       localStorage.setItem('role', data.role);
       
       message.success(`Chào mừng ${data.fullName} trở lại!`);
-      navigate('/'); // Đăng nhập xong đẩy thẳng vào Dashboard
+      window.location.href = '/'; // Đăng nhập xong đẩy thẳng vào Dashboard
     } catch (error) {
       message.error('Sai tài khoản hoặc mật khẩu!');
     } finally {
