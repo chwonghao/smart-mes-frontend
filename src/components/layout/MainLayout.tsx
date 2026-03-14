@@ -38,6 +38,8 @@ const MainLayout = ({ children }: { children: React.ReactNode }) => {
       label: 'Dữ liệu gốc',
       children: [
         { key: '/master-data/work-centers', label: 'Máy móc & Khu vực' },
+        { key: '/master-data/items', label: 'Sản phẩm & Vật tư'},
+        { key: '/master-data/boms', label: 'Cấu trúc Sản phẩm'},
       ],
     },
     {
@@ -46,6 +48,14 @@ const MainLayout = ({ children }: { children: React.ReactNode }) => {
       label: 'Quản lý Sản xuất',
       children: [
         { key: '/production/work-orders', label: 'Lệnh sản xuất' },
+      ]
+    },
+    {
+      key: 'inventory',
+      icon: <BuildOutlined />,
+      label: 'Kho nguyên liệu',
+      children: [
+        { key: '/inventory', label: 'Kho' },
       ]
     },
   ];

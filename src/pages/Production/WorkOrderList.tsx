@@ -1,10 +1,15 @@
 import React, { useEffect, useState } from 'react';
-import { Table, Tag, Button, Card, Progress, Space, message, Modal, Form, Input, Select, InputNumber } from 'antd';
+import { Table, Tag, Button, Card, Progress, Space, message, Modal, Form, Input, Select, InputNumber, DatePicker } from 'antd';
+import dayjs from 'dayjs';
 import { PlusOutlined, CheckCircleOutlined } from '@ant-design/icons';
+// IMPORT THÊM THƯ VIỆN WEBSOCKET
+import SockJS from 'sockjs-client';
+import { Stomp } from '@stomp/stompjs';
+
 import type { WorkOrder } from '../../types/production.type';
 import type { WorkCenter } from '../../types/master-data.type';
 import { getWorkOrders, createWorkOrder, reportProgress } from '../../services/production.service';
-import { getWorkCenters } from '../../services/master-data.service';
+import { getWorkCenters, getItems } from '../../services/master-data.service';
 
 const WorkOrderList: React.FC = () => {
   // 1. CÁC STATE QUẢN LÝ DỮ LIỆU
@@ -16,18 +21,19 @@ const WorkOrderList: React.FC = () => {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [form] = Form.useForm(); // Form tạo mới lệnh
   
-  // ĐÂY CHÍNH LÀ ĐOẠN BỊ THIẾU GÂY RA LỖI CỦA BẠN:
-  // Khai báo state cho Popup báo cáo, lưu trữ luôn cả ID lệnh và ID máy móc
   const [reportModal, setReportModal] = useState<{open: boolean, orderId?: number, workCenterId?: number}>({open: false});
   const [reportForm] = Form.useForm(); // Form báo cáo
+
+  const [items, setItems] = useState<any[]>([]);
 
   // Hàm tải dữ liệu
   const fetchData = async () => {
     setLoading(true);
     try {
-      const [orderRes, centerRes] = await Promise.all([getWorkOrders(), getWorkCenters()]);
+      const [orderRes, centerRes, itemsRes] = await Promise.all([getWorkOrders(), getWorkCenters(), getItems()]);
       setOrders(orderRes);
       setWorkCenters(centerRes);
+      setItems(itemsRes);
     } catch (error) {
       message.error("Lỗi tải dữ liệu lệnh sản xuất!");
     } finally {
@@ -35,14 +41,41 @@ const WorkOrderList: React.FC = () => {
     }
   };
 
+  // NÂNG CẤP LÊN REAL-TIME VỚI WEBSOCKETS
   useEffect(() => { 
+    // 1. Tải dữ liệu lần đầu khi vào trang
     fetchData(); 
+
+    // 2. Thiết lập đường ống WebSockets
+    const socket = new SockJS('http://localhost:8080/ws-mes'); // Khớp với port Backend của bạn
+    const stompClient = Stomp.over(socket);
+    
+    // Tắt log của STOMP để console đỡ bị rác
+    stompClient.debug = () => {}; 
+
+    stompClient.connect({}, () => {
+      // Lắng nghe chung kênh dashboard (kênh này sẽ nhận tín hiệu khi có lệnh mới hoặc cập nhật tiến độ)
+      stompClient.subscribe('/topic/dashboard', (message) => {
+        console.log("🚀 [WorkOrderList] Nhận tín hiệu thay đổi dữ liệu:", message.body);
+        // Tự động tải lại bảng khi có người khác thay đổi dữ liệu
+        fetchData(); 
+      });
+    });
+
+    // Cleanup: Ngắt kết nối khi rời khỏi trang
+    return () => {
+      if (stompClient) stompClient.disconnect();
+    };
   }, []);
 
   // Hàm Tạo lệnh mới
   const handleCreate = async (values: any) => {
     try {
-      await createWorkOrder(values);
+      const payload = {
+        ...values,
+        plannedStartDate: values.plannedStartDate ? values.plannedStartDate.format('YYYY-MM-DDTHH:mm:ss') : null
+      };
+      await createWorkOrder(payload);
       message.success("Tạo lệnh sản xuất thành công!");
       setIsModalOpen(false);
       form.resetFields();
@@ -64,10 +97,10 @@ const WorkOrderList: React.FC = () => {
       await reportProgress(reportModal.orderId, values.okQty, values.ngQty, reportModal.workCenterId);
       message.success("Đã cập nhật sản lượng thành công!");
       
-      // Đóng modal, xóa form và tải lại bảng
+      // Đóng modal và xóa form
       setReportModal({open: false});
       reportForm.resetFields();
-      fetchData(); 
+      fetchData();
     } catch (error: any) {
       const errorMsg = error.response?.data?.message || "Lỗi báo cáo sản lượng!";
       message.error(errorMsg);
@@ -83,7 +116,6 @@ const WorkOrderList: React.FC = () => {
       title: 'Tiến độ', 
       key: 'progress',
       render: (_: any, record: any) => {
-        // Tránh lỗi chia cho 0
         const percent = record.plannedQuantity > 0 
           ? Math.round((record.actualQuantity / record.plannedQuantity) * 100) 
           : 0;
@@ -118,8 +150,8 @@ const WorkOrderList: React.FC = () => {
             type="link" 
             icon={<CheckCircleOutlined />} 
             className="text-green-600 font-semibold"
-            disabled={record.status === 'COMPLETED'}
-            // Khi bấm, lưu trữ id lệnh VÀ id máy móc vào state để mở Form
+            disabled={record.status === 'COMPLETED' || !record.workCenterId}
+            title={!record.workCenterId ? "Lệnh này chưa gán máy, không thể báo cáo" : ""}
             onClick={() => setReportModal({ open: true, orderId: record.id, workCenterId: record.workCenterId })}
           >
             Báo cáo
@@ -134,16 +166,47 @@ const WorkOrderList: React.FC = () => {
       title={<span className="text-xl font-bold">Quản lý Lệnh sản xuất</span>}
       extra={<Button type="primary" icon={<PlusOutlined />} onClick={() => setIsModalOpen(true)}>Tạo lệnh mới</Button>}
     >
-      {/* BẢNG DỮ LIỆU */}
       <Table dataSource={orders} columns={columns} rowKey="id" loading={loading} />
 
       {/* POPUP 1: TẠO LỆNH MỚI */}
-      <Modal title="Tạo Lệnh Sản Xuất Mới" open={isModalOpen} onCancel={() => setIsModalOpen(false)} onOk={() => form.submit()}>
+      <Modal 
+        title="Tạo Lệnh Sản Xuất Mới" 
+        open={isModalOpen} 
+        onCancel={() => setIsModalOpen(false)} 
+        onOk={() => form.submit()}
+      >
         <Form form={form} layout="vertical" onFinish={handleCreate}>
-          <Form.Item name="plannedQuantity" label="Số lượng mục tiêu" rules={[{required: true}]}><InputNumber min={1} className="w-full" /></Form.Item>
-          <Form.Item name="itemId" label="ID Sản phẩm (Tạm thời nhập ID)" rules={[{required: true}]}><InputNumber min={1} className="w-full" /></Form.Item>
-          <Form.Item name="plannedStartDate" label="Ngày bắt đầu (YYYY-MM-DDTHH:mm:ss)" rules={[{required: true}]}><Input placeholder="2026-03-08T08:00:00" /></Form.Item>
-          <Form.Item name="workCenterId" label="Máy sản xuất" rules={[{required: true}]}>
+          <Form.Item name="plannedQuantity" label="Số lượng mục tiêu" rules={[{ required: true, message: 'Vui lòng nhập số lượng mục tiêu!' }]}>
+            <InputNumber min={1} className="w-full" placeholder="Ví dụ: 1000" />
+          </Form.Item>
+
+          <Form.Item name="itemId" label="Sản phẩm cần sản xuất" rules={[{ required: true, message: 'Vui lòng chọn sản phẩm!' }]}>
+            <Select 
+              placeholder="Gõ tên hoặc mã để tìm kiếm..." 
+              showSearch 
+              optionFilterProp="children" 
+              filterOption={(input, option) => (option?.children as unknown as string).toLowerCase().includes(input.toLowerCase())}
+            >
+              {items.map(item => (
+                <Select.Option key={item.id} value={item.id}>
+                  <span className="font-semibold text-blue-600">[{item.itemCode}]</span> {item.itemName}
+                </Select.Option>
+              ))}
+            </Select>
+          </Form.Item>
+
+          <Form.Item label="Ngày giờ bắt đầu" required>
+            <div className="flex gap-2">
+              <Form.Item name="plannedStartDate" noStyle rules={[{ required: true, message: 'Vui lòng chọn ngày giờ!' }]}>
+                <DatePicker showTime format="YYYY-MM-DD HH:mm:ss" className="flex-1" placeholder="Chọn ngày và giờ" />
+              </Form.Item>
+              <Button onClick={() => form.setFieldsValue({ plannedStartDate: dayjs() })} title="Tự động lấy giờ hiện tại">
+                Bây giờ
+              </Button>
+            </div>
+          </Form.Item>
+
+          <Form.Item name="workCenterId" label="Máy sản xuất" rules={[{ required: true, message: 'Vui lòng chọn máy sản xuất!' }]}>
             <Select placeholder="Chọn máy">
               {workCenters.map(wc => (
                 <Select.Option key={wc.id} value={wc.id} disabled={wc.currentStatus === 'DOWN'}>
@@ -152,11 +215,18 @@ const WorkOrderList: React.FC = () => {
               ))}
             </Select>
           </Form.Item>
-          <Form.Item name="priority" label="Độ ưu tiên (1-3)" rules={[{required: true}]}><InputNumber min={1} max={3} className="w-full" /></Form.Item>
+
+          <Form.Item name="priority" label="Độ ưu tiên (Mức độ gấp gáp)" rules={[{ required: true, message: 'Vui lòng chọn độ ưu tiên!' }]} initialValue={2}>
+            <Select placeholder="Chọn mức ưu tiên">
+              <Select.Option value={1}><Tag color="default">1 - Thấp (Sản xuất lưu kho)</Tag></Select.Option>
+              <Select.Option value={2}><Tag color="blue">2 - Bình thường (Theo kế hoạch)</Tag></Select.Option>
+              <Select.Option value={3}><Tag color="red">3 - Cao (Đơn hàng gấp / VIP)</Tag></Select.Option>
+            </Select>
+          </Form.Item>
         </Form>
       </Modal>
 
-      {/* POPUP 2: BÁO CÁO SẢN LƯỢNG (VỪA THÊM) */}
+      {/* POPUP 2: BÁO CÁO SẢN LƯỢNG */}
       <Modal 
         title="Báo cáo Sản lượng Thực tế" 
         open={reportModal.open} 

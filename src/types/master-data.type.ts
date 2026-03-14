@@ -8,3 +8,12 @@ export interface WorkCenter {
   currentStatus: 'IDLE' | 'RUNNING' | 'DOWN' | 'MAINTENANCE' | 'OFFLINE';
   lastPingAt: string; // ISO 8601 string
 }
+
+export interface ItemMaster {
+  id: number;
+  itemCode: string;
+  itemName: string;
+  itemType: 'RAW_MATERIAL' | 'SEMI_FINISHED' | 'FINISHED_GOOD';
+  unitOfMeasure: string;
+  description?: string;
+}
