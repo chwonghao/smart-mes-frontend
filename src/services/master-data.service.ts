@@ -60,3 +60,14 @@ export const createRouting = async (data: any): Promise<any> => {
 export const deleteRouting = async (id: string | number): Promise<any> => {
   return apiClient.delete(`/master-data/routings/${id}`);
 };
+
+// --- API QUẢN LÝ NHÂN SỰ / CÔNG NHÂN ---
+
+export const getWorkers = async (): Promise<any[]> => {
+  const res = await apiClient.get('/master-data/workers');
+  return (res as any).data || res; // Bóc tách dữ liệu an toàn tránh lỗi bất đồng bộ
+};
+
+export const createWorker = async (data: any): Promise<any> => {
+  return apiClient.post('/master-data/workers', data);
+};
