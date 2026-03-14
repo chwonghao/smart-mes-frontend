@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from 'react';
-import { Table, Tag, Button, Card, Progress, Space, message, Modal, Form, Select, InputNumber, DatePicker } from 'antd';
+// ĐÃ IMPORT THÊM Input ĐỂ DÙNG CHO KHUNG NHẬP LÝ DO LỖI
+import { Table, Tag, Button, Card, Progress, Space, message, Modal, Form, Select, InputNumber, DatePicker, Input } from 'antd';
 import dayjs from 'dayjs';
 import { PlusOutlined, CheckCircleOutlined, HistoryOutlined } from '@ant-design/icons';
 import SockJS from 'sockjs-client';
@@ -9,7 +10,7 @@ import type { WorkOrder } from '../../types/production.type';
 import type { WorkCenter } from '../../types/master-data.type';
 import { getWorkOrders, createWorkOrder, reportProgress } from '../../services/production.service';
 import { getWorkCenters, getItems } from '../../services/master-data.service';
-import apiClient from '../../services/apiClient'; // Import thêm apiClient để gọi API Logs
+import apiClient from '../../services/apiClient';
 
 const WorkOrderList: React.FC = () => {
   const [orders, setOrders] = useState<WorkOrder[]>([]);
@@ -51,8 +52,16 @@ const WorkOrderList: React.FC = () => {
     stompClient.debug = () => {}; 
 
     stompClient.connect({}, () => {
-      stompClient.subscribe('/topic/dashboard', (message) => {
-        console.log("🚀 [WorkOrderList] Nhận tín hiệu thay đổi dữ liệu:", message.body);
+      stompClient.subscribe('/topic/dashboard', (wsMessage) => { 
+        if (wsMessage.body === 'NEW_ORDER') message.info('Có Lệnh sản xuất mới!');
+        else if (wsMessage.body === 'PROGRESS_UPDATED') message.success('Có báo cáo sản lượng mới!');
+        else if (wsMessage.body === 'INVENTORY_UPDATED') message.info('Biến động Kho: Dữ liệu tồn kho vừa được cập nhật!');
+        
+        fetchData(); 
+      });
+
+      stompClient.subscribe('/topic/alerts', () => {
+        message.warning('Cảnh báo hệ thống mới!');
         fetchData(); 
       });
     });
@@ -84,7 +93,7 @@ const WorkOrderList: React.FC = () => {
       return;
     }
     try {
-      await reportProgress(reportModal.orderId, values.okQty, values.ngQty, reportModal.workCenterId);
+      await reportProgress(reportModal.orderId, values.okQty, values.ngQty, reportModal.workCenterId, values.defectReason, values.operatorName);
       message.success("Đã cập nhật sản lượng thành công!");
       setReportModal({open: false});
       reportForm.resetFields();
@@ -95,7 +104,6 @@ const WorkOrderList: React.FC = () => {
     }
   };
 
-  // HÀM MỚI: Gọi API lấy lịch sử báo cáo của 1 lệnh cụ thể
   const fetchLogs = async (orderId: number, orderNumber: string) => {
     setHistoryModal({ open: true, orderNumber });
     setLoadingLogs(true);
@@ -168,7 +176,7 @@ const WorkOrderList: React.FC = () => {
   // Cấu hình cột cho bảng Lịch sử
   const logColumns = [
     { 
-      title: 'Thời gian báo cáo', 
+      title: 'Thời gian', 
       dataIndex: 'createdAt', 
       key: 'createdAt',
       render: (val: any) => val ? new Date(val).toLocaleString('vi-VN') : 'N/A'
@@ -179,10 +187,15 @@ const WorkOrderList: React.FC = () => {
       render: (_: any, record: any) => record.operatorName || record.createdBy || 'Hệ thống'
     },
     { 
-      title: 'Sản lượng Đạt (OK)', 
-      dataIndex: 'quantityDone', 
-      key: 'quantityDone',
-      render: (val: number) => <span className="font-bold text-green-600">+{val}</span>
+      title: 'Sản lượng', 
+      key: 'quantities',
+      render: (_: any, record: any) => (
+        <div>
+          <span className="font-bold text-green-600 mr-2">OK: +{record.quantityDone || 0}</span>
+          {/* Giả sử Backend có trả về số lượng lỗi trong logs, nếu không thì bỏ dòng dưới */}
+          {record.failedQuantity > 0 && <span className="font-bold text-red-500">NG: +{record.failedQuantity}</span>}
+        </div>
+      )
     }
   ];
 
@@ -236,12 +249,34 @@ const WorkOrderList: React.FC = () => {
       {/* POPUP 2: BÁO CÁO SẢN LƯỢNG */}
       <Modal title="Báo cáo Sản lượng Thực tế" open={reportModal.open} onCancel={() => setReportModal({open: false})} onOk={() => reportForm.submit()} destroyOnClose>
         <Form form={reportForm} layout="vertical" onFinish={handleReport}>
+          <Form.Item name="operatorName" label="Người thực hiện / Người báo cáo" rules={[{required: true, message: 'Vui lòng nhập tên người thực hiện!'}]}>
+             <Input placeholder="VD: Nguyễn Văn A, Trần Thị B..." />
+          </Form.Item>
           <Form.Item name="okQty" label="Số lượng Đạt (OK)" rules={[{required: true}]} initialValue={0}>
             <InputNumber min={0} className="w-full" />
           </Form.Item>
           <Form.Item name="ngQty" label="Số lượng Lỗi (NG)" rules={[{required: true}]} initialValue={0}>
             <InputNumber min={0} className="w-full" />
           </Form.Item>
+
+          {/* 🛠️ ĐÃ BỔ SUNG: Khung nhập lý do chỉ hiện lên khi ngQty > 0 */}
+          <Form.Item
+            noStyle
+            shouldUpdate={(prevValues, currentValues) => prevValues.ngQty !== currentValues.ngQty}
+          >
+            {({ getFieldValue }) =>
+              getFieldValue('ngQty') > 0 ? (
+                <Form.Item
+                  name="defectReason"
+                  label="Lý do lỗi (Bắt buộc nhập khi có hàng hỏng)"
+                  rules={[{ required: true, message: 'Vui lòng nhập lý do lỗi để gửi báo cáo!' }]}
+                >
+                  <Input.TextArea rows={2} placeholder="VD: Bị xước sơn, nứt mẻ, sai kích thước..." />
+                </Form.Item>
+              ) : null
+            }
+          </Form.Item>
+
         </Form>
       </Modal>
 

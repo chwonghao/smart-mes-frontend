@@ -9,12 +9,22 @@ export const createWorkOrder = async (data: Partial<WorkOrder>) => {
   return apiClient.post('/production/work-orders', data);
 };
 
-// Hàm quan trọng: Báo cáo sản lượng (Cập nhật số lượng OK/NG)
-export const reportProgress = async (id: number, okQty: number, ngQty: number, workCenterId: number) => {
-  return apiClient.patch(`/production/work-orders/${id}/progress`, {
-    completedQuantity: okQty + ngQty, // Backend của bạn cần tổng số lượng
-    passedQuantity: okQty,
-    failedQuantity: ngQty,
-    workCenterId: workCenterId // Đừng quên ID máy móc vì Backend bắt buộc
-  });
+export const reportProgress = async (
+  orderId: number, 
+  okQty: number, 
+  ngQty: number, 
+  workCenterId: number, 
+  defectReason?: string,
+  operatorName?: string,
+) => {
+  const payload = {
+    completedQuantity: okQty + ngQty, // Tổng sản lượng làm ra
+    passedQuantity: okQty,            // Hàng đạt
+    failedQuantity: ngQty,            // Hàng NG
+    workCenterId: workCenterId,
+    defectReason: defectReason,
+    operatorName: operatorName,
+  };
+  
+  return apiClient.patch(`/production/work-orders/${orderId}/progress`, payload);
 };

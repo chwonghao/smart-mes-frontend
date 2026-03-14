@@ -6,6 +6,8 @@ import ItemList from '../pages/MasterData/ItemList';
 import BOMManagement from '../pages/MasterData/BOMManagement';
 import InventoryList from '../pages/Inventory/InventoryList';
 import RoutingManagement from '../pages/MasterData/RoutingManagement';
+import SystemLogList from '../pages/System/SystemLogList';
+import WorkerList from '../pages/MasterData/WorkerList';
 
 const NotFound = () => <div className="p-8 text-2xl font-bold text-red-600">❌ 404 - Không tìm thấy trang!</div>;
 
@@ -17,9 +19,13 @@ const AppRoutes = () => {
       <Route path="/master-data/items" element={<ItemList />} />
       <Route path="/master-data/boms" element={<BOMManagement />} />
       <Route path="/master-data/routings" element={<RoutingManagement />} />
+      <Route path="/master-data/workers" element={<WorkerList />} />
       
-      <Route path="/inventory" element={<InventoryList />} />
       <Route path="/production/work-orders" element={<WorkOrderList />} />
+
+      <Route path="/inventory" element={<InventoryList />} /> 
+
+      <Route path="/system/logs" element={<SystemLogList />} />
 
       <Route path="*" element={<NotFound />} />
     </Routes>

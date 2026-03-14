@@ -7,7 +7,8 @@ import {
   DatabaseOutlined,
   BuildOutlined,
   BellOutlined,
-  UserOutlined
+  UserOutlined,
+  SettingOutlined
 } from '@ant-design/icons';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { useWebSocket } from '../../hooks/useWebSocket'; // Đảm bảo đường dẫn này đúng với file hook bạn tạo
@@ -30,7 +31,7 @@ const MainLayout = ({ children }: { children: React.ReactNode }) => {
     {
       key: '/',
       icon: <DashboardOutlined />,
-      label: 'Tổng quan (Dashboard)',
+      label: 'Tổng quan',
     },
     {
       key: 'master-data',
@@ -41,6 +42,7 @@ const MainLayout = ({ children }: { children: React.ReactNode }) => {
         { key: '/master-data/items', label: 'Sản phẩm & Vật tư'},
         { key: '/master-data/boms', label: 'Cấu trúc Sản phẩm'},
         { key: '/master-data/routings', label: 'Quy trình sản xuất'},
+        { key: 'master-data/workers', label: 'Danh sách Nhân sự '},
       ],
     },
     {
@@ -57,6 +59,14 @@ const MainLayout = ({ children }: { children: React.ReactNode }) => {
       label: 'Kho nguyên liệu',
       children: [
         { key: '/inventory', label: 'Kho' },
+      ]
+    },
+    {
+      key: 'system',
+      icon: <SettingOutlined />,
+      label: 'Hệ thống',
+      children: [
+        { key: '/system/logs', label: 'Nhật ký hệ thống' },
       ]
     },
   ];

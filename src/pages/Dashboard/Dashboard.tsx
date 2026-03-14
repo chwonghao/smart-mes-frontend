@@ -50,32 +50,31 @@ const Dashboard: React.FC = () => {
   const [alerts, setAlerts] = useState<AlertFeed[]>([]);
   const [loading, setLoading] = useState<boolean>(true);
 
-  // Tạm lập một tỷ lệ lỗi giả định (Bạn có thể map API từ Backend sau)
   const [defectRate] = useState<number>(1.2); 
 
   const fetchData = async () => {
     setLoading(true);
     try {
-      // Gọi song song 3 luồng dữ liệu để tiết kiệm thời gian
       const [statsRes, centersRes, alertsRes] = await Promise.all([
         apiClient.get('/dashboard/stats'),
         getWorkCenters(),
-        apiClient.get('/realtime/alerts/unread').catch(() => []) // Nếu lỗi báo cáo chưa sẵn sàng thì trả về mảng rỗng
+        apiClient.get('/realtime/alerts/unread').catch(() => ({ data: [] }))
       ]);
 
+      // Bóc tách an toàn dữ liệu từ Axios
       const statsData = (statsRes as any).data || statsRes;
       setStats(statsData as DashboardStats);
       
-      // Tổng hợp dữ liệu máy móc ngay trên Frontend
-      const centers = centersRes as any[];
+      const centers = (centersRes as any).data || centersRes;
       setMachineStats({
-        total: centers.length,
-        running: centers.filter(c => c.currentStatus === 'RUNNING').length,
-        down: centers.filter(c => c.currentStatus === 'DOWN').length,
-        idle: centers.filter(c => !c.currentStatus || c.currentStatus === 'IDLE').length,
+        total: centers?.length || 0,
+        running: centers?.filter((c: any) => c.currentStatus === 'RUNNING').length || 0,
+        down: centers?.filter((c: any) => c.currentStatus === 'DOWN').length || 0,
+        idle: centers?.filter((c: any) => !c.currentStatus || c.currentStatus === 'IDLE').length || 0,
       });
 
-      setAlerts(alertsRes as AlertFeed[]);
+      const alertsData = (alertsRes as any).data || alertsRes;
+      setAlerts(alertsData || []);
     } catch (error) {
       message.error("Không thể tải dữ liệu Dashboard. Vui lòng thử lại!");
     } finally {
@@ -86,23 +85,21 @@ const Dashboard: React.FC = () => {
   useEffect(() => {
     fetchData();
 
-    // Thiết lập đường ống WebSockets Real-time
-    const socket = new SockJS('http://localhost:8080/ws-mes'); 
-    const stompClient = Stomp.over(socket);
+    // SỬA LỖI 1: Dùng hàm Factory để Stomp tự động reconnect
+    const stompClient = Stomp.over(() => new SockJS('http://localhost:8080/ws-mes')); 
     stompClient.debug = () => {}; 
 
     stompClient.connect({}, () => {
-      // 1. Lắng nghe kênh Dashboard (Lệnh & Kho)
       stompClient.subscribe('/topic/dashboard', (wsMessage) => { 
-        if (wsMessage.body === 'NEW_ORDER') message.info('🔥 Có Lệnh sản xuất mới!');
+        if (wsMessage.body === 'NEW_ORDER') message.info('Có Lệnh sản xuất mới!');
         else if (wsMessage.body === 'PROGRESS_UPDATED') message.success('Có báo cáo sản lượng mới!');
+        else if (wsMessage.body === 'INVENTORY_UPDATED') message.info('Biến động Kho: Dữ liệu tồn kho vừa được cập nhật!');
         fetchData(); 
       });
 
-      // 2. Lắng nghe kênh Cảnh báo (Alerts)
       stompClient.subscribe('/topic/alerts', () => {
         message.warning('Cảnh báo hệ thống mới!');
-        fetchData(); // Tải lại để lấy Alert mới vào danh sách
+        fetchData(); 
       });
     });
 
@@ -114,28 +111,46 @@ const Dashboard: React.FC = () => {
   if (loading && !stats) {
     return (
       <div className="flex justify-center items-center h-[70vh]">
-        <Spin size="large" tip="Đang tải dữ liệu tổng quan nhà máy..." />
+        {/* SỬA LỖI 2: Đổi `tip` thành `description` để không bị Antd báo vàng */}
+        <Spin size="large" description="Đang tải dữ liệu tổng quan nhà máy..." />
       </div>
     );
   }
 
-  if (!stats) return null;
+  // SỬA LỖI 3: Tránh màn hình trắng bằng một giao diện báo lỗi thân thiện
+  if (!stats) {
+    return (
+      <div className="flex flex-col justify-center items-center h-[70vh] text-gray-500">
+        <WarningOutlined className="text-5xl text-red-400 mb-4" />
+        <h2 className="text-xl font-bold">Không có dữ liệu</h2>
+        <p>Hệ thống không thể kết nối đến máy chủ. Vui lòng kiểm tra lại Backend.</p>
+        <Button type="primary" className="mt-4" onClick={fetchData}>Thử lại ngay</Button>
+      </div>
+    );
+  }
 
-  // Xử lý dữ liệu biểu đồ
-  const inventoryChartData = Object.entries(stats.inventorySummary || {}).map(([key, value]) => ({
+  // Khởi tạo các giá trị an toàn, tránh lỗi NaN làm crash biểu đồ
+  const safeStats = {
+    totalWorkOrders: stats.totalWorkOrders || 0,
+    activeWorkOrders: stats.activeWorkOrders || 0,
+    completedWorkOrders: stats.completedWorkOrders || 0,
+    overallCompletionRate: stats.overallCompletionRate || 0,
+    inventorySummary: stats.inventorySummary || {}
+  };
+
+  const inventoryChartData = Object.entries(safeStats.inventorySummary).map(([key, value]) => ({
     name: key, quantity: value
   }));
 
-  const pendingOrders = stats.totalWorkOrders - stats.activeWorkOrders - stats.completedWorkOrders;
+  const pendingOrders = safeStats.totalWorkOrders - safeStats.activeWorkOrders - safeStats.completedWorkOrders;
   const woChartData = [
-    { name: 'Đang sản xuất', value: stats.activeWorkOrders, color: '#3b82f6' },
-    { name: 'Đã hoàn thành', value: stats.completedWorkOrders, color: '#10b981' },
+    { name: 'Đang sản xuất', value: safeStats.activeWorkOrders, color: '#3b82f6' },
+    { name: 'Đã hoàn thành', value: safeStats.completedWorkOrders, color: '#10b981' },
     { name: 'Chờ xử lý / Khác', value: pendingOrders > 0 ? pendingOrders : 0, color: '#cbd5e1' }
   ];
 
   return (
     <div className="space-y-6 animate-fade-in">
-      {/* HEADER DASHBOARD */}
       <div className="flex justify-between items-center mb-6">
         <div>
           <h2 className="text-2xl font-bold text-gray-800">Tổng quan Quản trị Sản xuất</h2>
@@ -151,23 +166,20 @@ const Dashboard: React.FC = () => {
         </Button>
       </div>
 
-      {/* ROW 1: 4 TRỤ CỘT KPI CỐT LÕI */}
       <Row gutter={[16, 16]}>
-        {/* KPI 1: Tiến độ sản xuất */}
         <Col xs={24} sm={12} lg={6}>
           <Card className="shadow-sm border-l-4 border-l-blue-500 h-full">
             <Statistic 
               title={<span className="font-semibold text-gray-600">Tiến độ Sản xuất (Lệnh đang chạy)</span>} 
-              value={stats.activeWorkOrders} 
-              suffix={`/ ${stats.totalWorkOrders}`}
+              value={safeStats.activeWorkOrders} 
+              suffix={`/ ${safeStats.totalWorkOrders}`}
               prefix={<AppstoreOutlined className="text-blue-500 mr-2" />} 
               valueStyle={{ color: '#3b82f6', fontSize: '1.8rem', fontWeight: 'bold' }}
             />
-            <Progress percent={stats.overallCompletionRate} size="small" status="active" />
+            <Progress percent={safeStats.overallCompletionRate} size="small" status="active" />
           </Card>
         </Col>
         
-        {/* KPI 2: Trạng thái Máy móc */}
         <Col xs={24} sm={12} lg={6}>
           <Card className="shadow-sm border-l-4 border-l-green-500 h-full">
             <Statistic 
@@ -184,7 +196,6 @@ const Dashboard: React.FC = () => {
           </Card>
         </Col>
 
-        {/* KPI 3: Tỷ lệ Lỗi (QC) */}
         <Col xs={24} sm={12} lg={6}>
           <Card className="shadow-sm border-l-4 border-l-orange-400 h-full">
             <Statistic 
@@ -199,12 +210,11 @@ const Dashboard: React.FC = () => {
           </Card>
         </Col>
 
-        {/* KPI 4: Lệnh hoàn thành */}
         <Col xs={24} sm={12} lg={6}>
           <Card className="shadow-sm border-l-4 border-l-gray-400 h-full flex flex-col justify-center items-center">
              <Statistic 
               title={<span className="font-semibold text-gray-600">Lệnh Hoàn Thành</span>} 
-              value={stats.completedWorkOrders} 
+              value={safeStats.completedWorkOrders} 
               prefix={<CheckCircleOutlined className="text-gray-500 mr-2" />} 
               valueStyle={{ color: '#6b7280', fontSize: '2rem', fontWeight: 'bold' }}
             />
@@ -212,17 +222,14 @@ const Dashboard: React.FC = () => {
         </Col>
       </Row>
 
-      {/* ROW 2: BIỂU ĐỒ & BẢNG TIN */}
       <Row gutter={[16, 16]} className="mt-4">
-        
-        {/* CỘT TRÁI: Các Biểu đồ (Chiếm 16 cột) */}
         <Col xs={24} lg={16} className="space-y-6">
           <Card 
             title={<div className="flex items-center gap-2"><BuildOutlined className="text-blue-600" /><span className="font-bold">Top 5 Vật tư Tồn kho lớn nhất</span></div>} 
             className="shadow-sm"
           >
             {inventoryChartData.length > 0 ? (
-              <div style={{ height: 300 }}>
+              <div className="h-75">
                 <ResponsiveContainer width="100%" height="100%">
                   <BarChart data={inventoryChartData} margin={{ top: 20, right: 30, left: 20, bottom: 5 }}>
                     <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#e2e8f0" />
@@ -261,7 +268,6 @@ const Dashboard: React.FC = () => {
           </Card>
         </Col>
 
-        {/* CỘT PHẢI: Bảng tin Cảnh báo (Chiếm 8 cột) */}
         <Col xs={24} lg={8}>
           <Card 
             title={<div className="flex items-center gap-2"><AlertOutlined className="text-red-500" /><span className="font-bold">Bảng tin Sự cố & Cảnh báo (Live)</span></div>} 
@@ -308,7 +314,6 @@ const Dashboard: React.FC = () => {
             )}
           </Card>
         </Col>
-
       </Row>
     </div>
   );
