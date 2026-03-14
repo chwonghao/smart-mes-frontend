@@ -13,8 +13,10 @@ const ItemList: React.FC = () => {
   const fetchData = async () => {
     setLoading(true);
     try {
-      const data = await getItems();
-      setItems(data);
+      const res: any = await getItems();
+      // 🛡️ LỚP PHÒNG THỦ: Lọc lấy mảng ruột để Ant Design Table không bị Crash
+      const dataArray = Array.isArray(res) ? res : (res?.content || []);
+      setItems(dataArray);
     } catch (error) {
       message.error("Lỗi tải danh sách sản phẩm/vật tư!");
     } finally {
@@ -72,7 +74,7 @@ const ItemList: React.FC = () => {
         open={isModalOpen} 
         onCancel={() => setIsModalOpen(false)} 
         onOk={() => form.submit()}
-        destroyOnClose
+        destroyOnHidden
       >
         <Form form={form} layout="vertical" onFinish={handleCreate}>
           <Form.Item name="itemCode" label="Mã SP/Vật tư" rules={[{ required: true, message: 'Vui lòng nhập mã!' }]}>
