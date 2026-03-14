@@ -16,7 +16,6 @@ const WorkCenterList: React.FC = () => {
         setLoading(true);
         try {
             const response = await getWorkCenters();
-            console.log("Dữ liệu từ Backend:", response);
             setData(response as unknown as WorkCenter[]);
         } catch (error) {
             message.error('Không thể tải dữ liệu máy móc!');

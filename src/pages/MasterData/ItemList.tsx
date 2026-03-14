@@ -51,7 +51,7 @@ const ItemList: React.FC = () => {
     { title: 'Mã (Code)', dataIndex: 'itemCode', key: 'itemCode', className: 'font-semibold text-blue-600' },
     { title: 'Tên Vật tư / Sản phẩm', dataIndex: 'itemName', key: 'itemName' },
     { title: 'Phân loại', dataIndex: 'itemType', key: 'itemType', render: renderItemType },
-    { title: 'Đơn vị tính', dataIndex: 'unitOfMeasure', key: 'unitOfMeasure' },
+    { title: 'Đơn vị tính', dataIndex: 'unit', key: 'unit' },
     { title: 'Mô tả', dataIndex: 'description', key: 'description' },
   ];
 
@@ -91,7 +91,7 @@ const ItemList: React.FC = () => {
             </Select>
           </Form.Item>
 
-          <Form.Item name="unitOfMeasure" label="Đơn vị tính (UOM)" rules={[{ required: true, message: 'Vui lòng nhập ĐVT!' }]}>
+          <Form.Item name="unit" label="Đơn vị tính (UOM)" rules={[{ required: true, message: 'Vui lòng nhập ĐVT!' }]}>
             <Input placeholder="VD: Cái, Kg, Lít, Mét..." />
           </Form.Item>
 

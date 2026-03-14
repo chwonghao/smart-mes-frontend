@@ -40,6 +40,7 @@ const MainLayout = ({ children }: { children: React.ReactNode }) => {
         { key: '/master-data/work-centers', label: 'Máy móc & Khu vực' },
         { key: '/master-data/items', label: 'Sản phẩm & Vật tư'},
         { key: '/master-data/boms', label: 'Cấu trúc Sản phẩm'},
+        { key: '/master-data/routings', label: 'Quy trình sản xuất'},
       ],
     },
     {

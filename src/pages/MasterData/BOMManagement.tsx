@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { Table, Button, Card, Space, message, Modal, Form, InputNumber, Select } from 'antd';
+import { Table, Button, Card, message, Modal, Form, InputNumber, Select } from 'antd';
 import { PlusOutlined, ApartmentOutlined } from '@ant-design/icons';
 import { getItems, getBomsByItem, createBom } from '../../services/master-data.service';
 
@@ -44,8 +44,34 @@ const BOMManagement: React.FC = () => {
   };
 
   const columns = [
-    { title: 'Thành phần (Vật tư con)', dataIndex: ['childItem', 'itemName'], key: 'childItem' },
-    { title: 'Mã Vật tư', dataIndex: ['childItem', 'itemCode'], key: 'itemCode' },
+    { 
+      title: 'Thành phần (Vật tư con)', 
+      key: 'childItemName',
+      render: (_: any, record: any) => {
+        if (record.childItemName) return record.childItemName;
+        if (record.childItem?.itemName) return record.childItem.itemName;
+        
+        if (record.childItemId) {
+          const matchedItem = items.find(i => i.id === record.childItemId);
+          return matchedItem ? matchedItem.itemName : 'Chưa xác định';
+        }
+        return 'Chưa xác định';
+      }
+    },
+    { 
+      title: 'Mã Vật tư', 
+      key: 'childItemCode',
+      render: (_: any, record: any) => {
+        if (record.childItemCode) return record.childItemCode;
+        if (record.childItem?.itemCode) return record.childItem.itemCode;
+        
+        if (record.childItemId) {
+          const matchedItem = items.find(i => i.id === record.childItemId);
+          return matchedItem ? matchedItem.itemCode : 'N/A';
+        }
+        return 'N/A';
+      }
+    },
     { title: 'Số lượng cần dùng', dataIndex: 'quantity', key: 'quantity', render: (val: number) => <span className="font-bold text-blue-600">{val}</span> },
     { title: 'Tỷ lệ hao hụt (Scrap %)', dataIndex: 'scrapFactor', key: 'scrapFactor', render: (val: number) => `${val * 100}%` },
   ];

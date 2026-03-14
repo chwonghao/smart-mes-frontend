@@ -5,5 +5,11 @@ export const getInventory = async (): Promise<any[]> => {
 };
 
 export const adjustInventory = async (data: { itemId: number; quantity: number; reason: string }): Promise<any> => {
-  return apiClient.post('/inventory/adjust', data);
+  return apiClient.post('/inventory/adjust', null, { 
+    params: {
+      itemId: data.itemId,
+      amount: data.quantity,
+      reason: data.reason
+    }
+  });
 };

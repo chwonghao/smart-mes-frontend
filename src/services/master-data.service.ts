@@ -12,7 +12,7 @@ export const createWorkCenter = async (
   return apiClient.post('/master-data/work-centers', data);
 };
 
-// Chuẩn bị sẵn 2 hàm báo hỏng và sửa máy (chúng ta sẽ dùng ở chức năng sau)
+// Chuẩn bị sẵn 2 hàm báo hỏng và sửa máy
 export const reportMachineDown = async (id: number, reason: string) => {
   return apiClient.post(`/master-data/work-centers/${id}/down`, null, {
     params: { reason: reason }
@@ -24,7 +24,7 @@ export const resolveMachineIssue = async (id: number) => {
 };
 
 export const getItems = async (): Promise<any[]> => {
-  return apiClient.get('/master-data/items'); // Đảm bảo đường dẫn này khớp với Backend của bạn nhé
+  return apiClient.get('/master-data/items'); 
 };
 
 // Tạo mới Item
@@ -42,10 +42,21 @@ export const createBom = async (data: any): Promise<any> => {
 };
 
 // --- API CHO ROUTING (QUY TRÌNH SẢN XUẤT) ---
+
+// ĐÃ THÊM: Lấy toàn bộ danh sách quy trình để hiển thị lên bảng
+export const getAllRoutings = async (): Promise<any[]> => {
+  return apiClient.get('/master-data/routings');
+};
+
 export const getRoutingsByItem = async (itemId: number): Promise<any[]> => {
   return apiClient.get(`/master-data/routings/item/${itemId}`);
 };
 
 export const createRouting = async (data: any): Promise<any> => {
   return apiClient.post('/master-data/routings', data);
+};
+
+// ĐÃ THÊM: Xóa quy trình sản xuất
+export const deleteRouting = async (id: string | number): Promise<any> => {
+  return apiClient.delete(`/master-data/routings/${id}`);
 };

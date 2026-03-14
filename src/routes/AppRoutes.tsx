@@ -5,9 +5,8 @@ import Dashboard from '../pages/Dashboard/Dashboard';
 import ItemList from '../pages/MasterData/ItemList';
 import BOMManagement from '../pages/MasterData/BOMManagement';
 import InventoryList from '../pages/Inventory/InventoryList';
+import RoutingManagement from '../pages/MasterData/RoutingManagement';
 
-// const Dashboard = () => <div className="p-8 text-2xl font-bold text-blue-600">📊 Màn hình Tổng quan (Dashboard)</div>;
-// const WorkOrderList = () => <div className="p-8 text-2xl font-bold text-green-600">📝 Lệnh Sản Xuất (Work Orders)</div>;
 const NotFound = () => <div className="p-8 text-2xl font-bold text-red-600">❌ 404 - Không tìm thấy trang!</div>;
 
 const AppRoutes = () => {
@@ -17,6 +16,8 @@ const AppRoutes = () => {
       <Route path="/master-data/work-centers" element={<WorkCenterList />} />
       <Route path="/master-data/items" element={<ItemList />} />
       <Route path="/master-data/boms" element={<BOMManagement />} />
+      <Route path="/master-data/routings" element={<RoutingManagement />} />
+      
       <Route path="/inventory" element={<InventoryList />} />
       <Route path="/production/work-orders" element={<WorkOrderList />} />
 
