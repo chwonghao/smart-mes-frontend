@@ -13,6 +13,9 @@ import RoutingManagement from '../pages/MasterData/RoutingManagement';
 import SystemLogList from '../pages/System/SystemLogList';
 import WorkerList from '../pages/MasterData/WorkerList';
 import LoginPage from '../pages/Auth/LoginPage';
+import UserManagement from '../pages/System/UserManagement';
+import ProtectedRoute from '../components/ProtectedRoute';
+import SettingsPage from '../pages/System/SettingsPage';
 
 const NotFound = () => <div className="p-8 text-2xl font-bold text-red-600">❌ 404 - Không tìm thấy trang!</div>;
 
@@ -28,11 +31,10 @@ const AppRoutes = () => {
       <Route path="/login" element={<LoginPage />} />
 
       {/* ROUTE BẢO MẬT (Phải có Token mới vào được MainLayout) */}
-      <Route 
-        path="/" 
+      <Route
+        path="/"
         element={
           <PrivateRoute>
-             {/* BỎ children={undefined} đi, chỉ để thẻ mở đóng bình thường */}
             <MainLayout />
           </PrivateRoute>
         }
@@ -46,10 +48,23 @@ const AppRoutes = () => {
         <Route path="master-data/boms" element={<BOMManagement />} />
         <Route path="master-data/routings" element={<RoutingManagement />} />
         <Route path="master-data/workers" element={<WorkerList />} />
-        
+
         <Route path="production/work-orders" element={<WorkOrderList />} />
-        <Route path="inventory" element={<InventoryList />} /> 
+        <Route path="inventory" element={<InventoryList />} />
         <Route path="system/logs" element={<SystemLogList />} />
+        <Route
+          path="/system/users"
+          element={
+            <ProtectedRoute requiredRole="ROLE_ADMIN">
+              <UserManagement />
+            </ProtectedRoute>
+          }
+        />
+        <Route path="system/settings" element={
+          <ProtectedRoute requiredRole="ROLE_ADMIN">
+            <SettingsPage />
+          </ProtectedRoute>
+        } />
 
         <Route path="*" element={<NotFound />} />
       </Route>

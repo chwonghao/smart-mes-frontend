@@ -11,7 +11,8 @@ import {
   LogoutOutlined
 } from '@ant-design/icons';
 import { useNavigate, useLocation, Outlet } from 'react-router-dom';
-import { useWebSocket } from '../../hooks/useWebSocket'; 
+import { useWebSocket } from '../../hooks/useWebSocket';
+import { useSettings } from '../../contexts/SettingContext';
 
 const { Header, Sider, Content } = Layout;
 
@@ -19,6 +20,8 @@ const MainLayout: React.FC = () => {
   const [collapsed, setCollapsed] = useState(false);
   const navigate = useNavigate();
   const location = useLocation();
+  const { settings } = useSettings();
+  const factoryName = settings['FACTORY_NAME'] || 'SMART MES';
 
   const { notifications, unreadCount, clearCount } = useWebSocket('/topic/alerts');
 
@@ -58,10 +61,10 @@ const MainLayout: React.FC = () => {
       label: 'Dữ liệu gốc',
       children: [
         { key: '/master-data/work-centers', label: 'Máy móc & Khu vực' },
-        { key: '/master-data/items', label: 'Sản phẩm & Vật tư'},
-        { key: '/master-data/boms', label: 'Cấu trúc Sản phẩm'},
-        { key: '/master-data/routings', label: 'Quy trình sản xuất'},
-        { key: '/master-data/workers', label: 'Danh sách Nhân sự '},
+        { key: '/master-data/items', label: 'Sản phẩm & Vật tư' },
+        { key: '/master-data/boms', label: 'Cấu trúc Sản phẩm' },
+        { key: '/master-data/routings', label: 'Quy trình sản xuất' },
+        { key: '/master-data/workers', label: 'Danh sách Nhân sự ' },
       ],
     },
     {
@@ -86,6 +89,10 @@ const MainLayout: React.FC = () => {
       label: 'Hệ thống',
       children: [
         { key: '/system/logs', label: 'Nhật ký hệ thống' },
+        ...(role === 'ROLE_ADMIN' ? [
+          { key: '/system/users', label: 'Quản lý tài khoản' },
+          { key: '/system/settings', label: 'Cài đặt chung' }
+        ] : [])
       ]
     },
   ];
@@ -140,7 +147,7 @@ const MainLayout: React.FC = () => {
       <Sider trigger={null} collapsible collapsed={collapsed} theme="light" className="shadow-md">
         <div className="h-16 flex items-center justify-center border-b border-gray-100">
           <h1 className={`text-blue-600 font-bold transition-all ${collapsed ? 'text-xl' : 'text-2xl'}`}>
-            {collapsed ? 'MES' : 'SMART MES'}
+            {collapsed ? 'MES' : factoryName}
           </h1>
         </div>
         <Menu
@@ -154,12 +161,12 @@ const MainLayout: React.FC = () => {
       </Sider>
 
       <Layout>
-        <Header 
-          style={{ 
-            padding: '0 16px', 
-            background: colorBgContainer, 
-            display: 'flex', 
-            justifyContent: 'space-between', 
+        <Header
+          style={{
+            padding: '0 16px',
+            background: colorBgContainer,
+            display: 'flex',
+            justifyContent: 'space-between',
             alignItems: 'center',
             boxShadow: '0 1px 2px 0 rgba(0, 0, 0, 0.05)'
           }}
@@ -170,19 +177,19 @@ const MainLayout: React.FC = () => {
             onClick={() => setCollapsed(!collapsed)}
             style={{ fontSize: '16px', width: 64, height: 64 }}
           />
-          
+
           <div className="flex items-center gap-6">
-            <Popover 
-              content={notificationContent} 
-              trigger="click" 
+            <Popover
+              content={notificationContent}
+              trigger="click"
               placement="bottomRight"
               onOpenChange={(visible) => visible && clearCount()}
             >
               <Badge count={unreadCount} overflowCount={99} size="small">
-                <Button 
-                  type="text" 
-                  shape="circle" 
-                  icon={<BellOutlined className="text-xl text-gray-600" />} 
+                <Button
+                  type="text"
+                  shape="circle"
+                  icon={<BellOutlined className="text-xl text-gray-600" />}
                 />
               </Badge>
             </Popover>
@@ -204,11 +211,11 @@ const MainLayout: React.FC = () => {
           </div>
         </Header>
 
-        <Content 
-          style={{ 
-            margin: '24px 16px', 
-            padding: 24, 
-            minHeight: 280, 
+        <Content
+          style={{
+            margin: '24px 16px',
+            padding: 24,
+            minHeight: 280,
             background: colorBgContainer,
             borderRadius: borderRadiusLG,
             overflow: 'initial'
