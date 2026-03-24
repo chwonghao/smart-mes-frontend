@@ -13,9 +13,11 @@ const ProtectedRoute = ({ children, requiredRole }: Props) => {
   if (!token) {
     return <Navigate replace to="/login" />;
   }
-
+  if (role === 'ROLE_WORKER' && !location.pathname.startsWith('/mobile')) {
+    return <Navigate replace to="/mobile/scan" />;
+  }
   if (requiredRole && role !== requiredRole) {
-    return <Navigate replace to="/dashboard" />;
+    return <Navigate replace to="/" />;
   }
 
   return children;

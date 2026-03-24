@@ -1,7 +1,7 @@
 import axios from 'axios';
 
 const apiClient = axios.create({
-  baseURL: 'http://localhost:8080/api/v1',
+  baseURL: import.meta.env.VITE_API_BASE_URL || 'http://localhost:8080/api/v1',
   headers: {
     'Content-Type': 'application/json',
   },
@@ -25,8 +25,8 @@ apiClient.interceptors.response.use(
   (error) => {
     if (error.response && error.response.status === 401) {
       localStorage.removeItem('token');
-      localStorage.removeItem('fullName');
-      localStorage.removeItem('role');
+        localStorage.removeItem('fullName');
+        localStorage.removeItem('role');
       window.location.href = '/login'; // Chuyển hướng cứng về Login
     }
     return Promise.reject(error);

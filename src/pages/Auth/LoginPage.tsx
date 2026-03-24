@@ -22,7 +22,11 @@ const LoginPage: React.FC = () => {
       localStorage.setItem('role', data.role);
       
       message.success(`Chào mừng ${data.fullName} trở lại!`);
-      window.location.href = '/'; // Đăng nhập xong đẩy thẳng vào Dashboard
+      if (data.role === 'ROLE_WORKER') {
+        window.location.href = '/mobile/scan';
+      } else {
+        window.location.href = '/dashboard'; 
+      }
     } catch (error) {
       message.error('Sai tài khoản hoặc mật khẩu!');
     } finally {

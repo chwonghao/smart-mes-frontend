@@ -16,6 +16,7 @@ import LoginPage from '../pages/Auth/LoginPage';
 import UserManagement from '../pages/System/UserManagement';
 import ProtectedRoute from '../components/ProtectedRoute';
 import SettingsPage from '../pages/System/SettingsPage';
+import WorkerScanner from '../pages/Mobile/WorkerScanner';
 
 const NotFound = () => <div className="p-8 text-2xl font-bold text-red-600">❌ 404 - Không tìm thấy trang!</div>;
 
@@ -30,19 +31,29 @@ const AppRoutes = () => {
       {/* ROUTE CÔNG KHAI */}
       <Route path="/login" element={<LoginPage />} />
 
+      {/* 👉 2. ROUTE MOBILE ĐỘC LẬP (Nằm ngoài MainLayout để giao diện full màn hình điện thoại) */}
+      <Route 
+        path="/mobile/scan" 
+        element={
+          <PrivateRoute>
+            <WorkerScanner />
+          </PrivateRoute>
+        } 
+      />
+
       {/* ROUTE BẢO MẬT (Phải có Token mới vào được MainLayout) */}
       <Route
         path="/"
         element={
-          <PrivateRoute>
+          <ProtectedRoute>
             <MainLayout />
-          </PrivateRoute>
+          </ProtectedRoute>
         }
       >
-        {/* THÊM DÒNG NÀY: Khi vào trang chủ "/" sẽ mặc định load Dashboard */}
+        {/* Khi vào trang chủ "/" sẽ mặc định load Dashboard */}
         <Route index element={<Dashboard />} />
 
-        {/* CÁC TRANG CON BÊN TRONG (Bỏ dấu "/" ở đầu đi để React tự nối đuôi) */}
+        {/* CÁC TRANG CON BÊN TRONG */}
         <Route path="master-data/work-centers" element={<WorkCenterList />} />
         <Route path="master-data/items" element={<ItemList />} />
         <Route path="master-data/boms" element={<BOMManagement />} />
@@ -52,8 +63,10 @@ const AppRoutes = () => {
         <Route path="production/work-orders" element={<WorkOrderList />} />
         <Route path="inventory" element={<InventoryList />} />
         <Route path="system/logs" element={<SystemLogList />} />
+        
+        {/* Sửa lại path của users bỏ dấu / ở đầu để đồng bộ chuẩn Nested Route */}
         <Route
-          path="/system/users"
+          path="system/users"
           element={
             <ProtectedRoute requiredRole="ROLE_ADMIN">
               <UserManagement />

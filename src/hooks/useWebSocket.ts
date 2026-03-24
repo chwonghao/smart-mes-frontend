@@ -11,7 +11,7 @@ export const useWebSocket = (topic: string) => {
     const token = localStorage.getItem('token');
 
     const client = new Client({
-      webSocketFactory: () => new SockJS('http://localhost:8080/ws-mes'),
+      webSocketFactory: () => new SockJS(import.meta.env.VITE_WS_URL),
       
       connectHeaders: {
         Authorization: token ? `Bearer ${token}` : '',

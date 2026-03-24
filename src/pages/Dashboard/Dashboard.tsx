@@ -86,7 +86,7 @@ const Dashboard: React.FC = () => {
     fetchData();
 
     // SỬA LỖI 1: Dùng hàm Factory để Stomp tự động reconnect
-    const stompClient = Stomp.over(() => new SockJS('http://localhost:8080/ws-mes')); 
+    const stompClient = Stomp.over(() => new SockJS('/ws-mes')); 
     stompClient.debug = () => {}; 
 
     stompClient.connect({}, () => {

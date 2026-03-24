@@ -1,8 +1,7 @@
 import React, { useEffect, useState } from 'react';
-// ĐÃ IMPORT THÊM Input ĐỂ DÙNG CHO KHUNG NHẬP LÝ DO LỖI
-import { Table, Tag, Button, Card, Progress, Space, message, Modal, Form, Select, InputNumber, DatePicker, Input } from 'antd';
+import { Table, Tag, Button, Card, Progress, Space, message, Modal, Form, Select, InputNumber, DatePicker, Input, QRCode } from 'antd';
 import dayjs from 'dayjs';
-import { PlusOutlined, CheckCircleOutlined, HistoryOutlined } from '@ant-design/icons';
+import { PlusOutlined, CheckCircleOutlined, HistoryOutlined, QrcodeOutlined, PrinterOutlined } from '@ant-design/icons';
 import SockJS from 'sockjs-client';
 import { Stomp } from '@stomp/stompjs';
 
@@ -23,10 +22,11 @@ const WorkOrderList: React.FC = () => {
   const [reportModal, setReportModal] = useState<{open: boolean, orderId?: number, workCenterId?: number}>({open: false});
   const [reportForm] = Form.useForm();
 
-  // STATE MỚI: Dành cho Popup Lịch sử
   const [historyModal, setHistoryModal] = useState<{open: boolean, orderNumber?: string}>({open: false});
   const [logs, setLogs] = useState<any[]>([]);
   const [loadingLogs, setLoadingLogs] = useState(false);
+
+  const [qrModal, setQrModal] = useState<{open: boolean, orderNumber?: string, orderId?: number}>({open: false});
 
   const [items, setItems] = useState<any[]>([]);
 
@@ -47,7 +47,7 @@ const WorkOrderList: React.FC = () => {
   useEffect(() => { 
     fetchData(); 
 
-    const socket = new SockJS('http://localhost:8080/ws-mes'); 
+    const socket = new SockJS('/ws-mes'); 
     const stompClient = Stomp.over(socket);
     stompClient.debug = () => {}; 
 
@@ -159,7 +159,14 @@ const WorkOrderList: React.FC = () => {
           >
             Báo cáo
           </Button>
-          {/* NÚT XEM LỊCH SỬ */}
+          <Button 
+            type="text" 
+            icon={<QrcodeOutlined />} 
+            className="text-blue-600 hover:bg-blue-50"
+            onClick={() => setQrModal({ open: true, orderId: record.id, orderNumber: record.orderNumber })}
+          >
+            Mã QR
+          </Button>
           <Button 
             type="link" 
             icon={<HistoryOutlined />} 
@@ -192,7 +199,6 @@ const WorkOrderList: React.FC = () => {
       render: (_: any, record: any) => (
         <div>
           <span className="font-bold text-green-600 mr-2">OK: +{record.quantityDone || 0}</span>
-          {/* Giả sử Backend có trả về số lượng lỗi trong logs, nếu không thì bỏ dòng dưới */}
           {record.failedQuantity > 0 && <span className="font-bold text-red-500">NG: +{record.failedQuantity}</span>}
         </div>
       )
@@ -259,7 +265,6 @@ const WorkOrderList: React.FC = () => {
             <InputNumber min={0} className="w-full" />
           </Form.Item>
 
-          {/* 🛠️ ĐÃ BỔ SUNG: Khung nhập lý do chỉ hiện lên khi ngQty > 0 */}
           <Form.Item
             noStyle
             shouldUpdate={(prevValues, currentValues) => prevValues.ngQty !== currentValues.ngQty}
@@ -300,6 +305,50 @@ const WorkOrderList: React.FC = () => {
           locale={{ emptyText: 'Chưa có báo cáo nào cho lệnh này.' }}
         />
       </Modal>
+
+      {/* 👉 POPUP 4: HIỂN THỊ VÀ IN MÃ QR */}
+      <Modal 
+        title={<span className="text-lg font-bold">Tem Lệnh Sản Xuất</span>} 
+        open={qrModal.open} 
+        onCancel={() => setQrModal({open: false})} 
+        footer={null}
+        width={350}
+        centered
+      >
+        <div className="flex flex-col items-center justify-center p-6 border-2 border-dashed border-gray-300 rounded-lg bg-gray-50 mt-4">
+          <h2 className="text-2xl font-black text-gray-800 mb-4">{qrModal.orderNumber}</h2>
+          
+          <div className="bg-white p-2 rounded-xl shadow-sm">
+            <QRCode 
+              value={JSON.stringify({ 
+                type: 'WORK_ORDER', 
+                id: qrModal.orderId, 
+                orderNumber: qrModal.orderNumber 
+              })} 
+              size={200}
+              color="#0f172a" 
+              bordered={false}
+            />
+          </div>
+          
+          <p className="mt-6 text-center text-sm text-gray-500">
+            Công nhân sử dụng máy quét hoặc App Mobile quét mã này để báo cáo sản lượng nhanh.
+          </p>
+
+          <Button 
+            type="primary" 
+            icon={<PrinterOutlined />} 
+            size="large" 
+            className="mt-4 w-full"
+            onClick={() => {
+              message.success("Đang gửi lệnh in tới máy in nhiệt...");
+            }}
+          >
+            In tem dán (Traveler)
+          </Button>
+        </div>
+      </Modal>
+
     </Card>
   );
 };
