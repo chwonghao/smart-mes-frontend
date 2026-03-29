@@ -58,14 +58,12 @@ const Dashboard: React.FC = () => {
       const [statsRes, centersRes, alertsRes] = await Promise.all([
         apiClient.get('/dashboard/stats'),
         getWorkCenters(),
-        apiClient.get('/realtime/alerts/unread').catch(() => ({ data: [] }))
+        apiClient.get('/realtime/alerts/unread').catch(() => [])
       ]);
 
-      // Bóc tách an toàn dữ liệu từ Axios
-      const statsData = (statsRes as any).data || statsRes;
-      setStats(statsData as DashboardStats);
+      setStats(statsRes as DashboardStats);
       
-      const centers = (centersRes as any).data || centersRes;
+      const centers = centersRes as any[];
       setMachineStats({
         total: centers?.length || 0,
         running: centers?.filter((c: any) => c.currentStatus === 'RUNNING').length || 0,
@@ -73,8 +71,7 @@ const Dashboard: React.FC = () => {
         idle: centers?.filter((c: any) => !c.currentStatus || c.currentStatus === 'IDLE').length || 0,
       });
 
-      const alertsData = (alertsRes as any).data || alertsRes;
-      setAlerts(alertsData || []);
+      setAlerts((alertsRes as AlertFeed[]) || []);
     } catch (error) {
       message.error("Không thể tải dữ liệu Dashboard. Vui lòng thử lại!");
     } finally {

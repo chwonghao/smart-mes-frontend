@@ -1,5 +1,4 @@
 import { Routes, Route, Navigate } from 'react-router-dom';
-import type { JSX } from 'react';
 
 // CÁC COMPONENT CỦA BẠN
 import MainLayout from '../components/layout/MainLayout';
@@ -20,28 +19,48 @@ import WorkerScanner from '../pages/Mobile/WorkerScanner';
 
 const NotFound = () => <div className="p-8 text-2xl font-bold text-red-600">❌ 404 - Không tìm thấy trang!</div>;
 
-const PrivateRoute = ({ children }: { children: JSX.Element }) => {
-  const token = localStorage.getItem('token');
-  return token ? children : <Navigate to="/login" />;
+const LoginRoute = () => {
+  const role = localStorage.getItem('role');
+
+  if (!role) {
+    return <LoginPage />;
+  }
+
+  if (role === 'ROLE_WORKER') {
+    return <Navigate replace to="/mobile/scan" />;
+  }
+
+  return <Navigate replace to="/" />;
+};
+
+const RootFallback = () => {
+  const role = localStorage.getItem('role');
+
+  if (!role) {
+    return <Navigate replace to="/login" />;
+  }
+
+  if (role === 'ROLE_WORKER') {
+    return <Navigate replace to="/mobile/scan" />;
+  }
+
+  return <Navigate replace to="/" />;
 };
 
 const AppRoutes = () => {
   return (
     <Routes>
-      {/* ROUTE CÔNG KHAI */}
-      <Route path="/login" element={<LoginPage />} />
+      <Route path="/login" element={<LoginRoute />} />
 
-      {/* 👉 2. ROUTE MOBILE ĐỘC LẬP (Nằm ngoài MainLayout để giao diện full màn hình điện thoại) */}
       <Route 
         path="/mobile/scan" 
         element={
-          <PrivateRoute>
+          <ProtectedRoute allowWorkerOnly>
             <WorkerScanner />
-          </PrivateRoute>
+          </ProtectedRoute>
         } 
       />
 
-      {/* ROUTE BẢO MẬT (Phải có Token mới vào được MainLayout) */}
       <Route
         path="/"
         element={
@@ -50,10 +69,8 @@ const AppRoutes = () => {
           </ProtectedRoute>
         }
       >
-        {/* Khi vào trang chủ "/" sẽ mặc định load Dashboard */}
         <Route index element={<Dashboard />} />
 
-        {/* CÁC TRANG CON BÊN TRONG */}
         <Route path="master-data/work-centers" element={<WorkCenterList />} />
         <Route path="master-data/items" element={<ItemList />} />
         <Route path="master-data/boms" element={<BOMManagement />} />
@@ -63,8 +80,7 @@ const AppRoutes = () => {
         <Route path="production/work-orders" element={<WorkOrderList />} />
         <Route path="inventory" element={<InventoryList />} />
         <Route path="system/logs" element={<SystemLogList />} />
-        
-        {/* Sửa lại path của users bỏ dấu / ở đầu để đồng bộ chuẩn Nested Route */}
+
         <Route
           path="system/users"
           element={
@@ -81,6 +97,8 @@ const AppRoutes = () => {
 
         <Route path="*" element={<NotFound />} />
       </Route>
+
+      <Route path="*" element={<RootFallback />} />
     </Routes>
   );
 };

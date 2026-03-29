@@ -1,7 +1,7 @@
 import apiClient from './apiClient';
 
 export const getInventory = async (): Promise<any[]> => {
-  return apiClient.get('/inventory');
+  return apiClient.get<any[]>('/inventory');
 };
 
 export const adjustInventory = async (data: { itemId: number; quantity: number; reason: string }): Promise<any> => {

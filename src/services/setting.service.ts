@@ -1,7 +1,7 @@
 import apiClient from './apiClient';
 
 export const getSystemSettings = async (): Promise<any> => {
-  return apiClient.get('/settings');
+  return apiClient.get<Record<string, string>>('/settings');
 };
 
 export const saveSystemSettings = async (data: Record<string, any>): Promise<any> => {

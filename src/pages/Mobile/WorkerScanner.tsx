@@ -1,8 +1,8 @@
 import React, { useEffect, useState } from 'react';
-import { Card, Button, Form, InputNumber, Input, Select, message, Typography, Space, Divider, Tag, Progress } from 'antd';
-import { QrcodeOutlined, CheckCircleOutlined, LeftOutlined, CheckOutlined } from '@ant-design/icons';
+import { Card, Button, Form, InputNumber, Input, Select, message, Typography, Divider, Tag, Progress } from 'antd';
+import { QrcodeOutlined, LeftOutlined, CheckOutlined } from '@ant-design/icons';
 import { Html5QrcodeScanner } from 'html5-qrcode';
-import { reportProgress, getWorkOrders } from '../../services/production.service';
+import { reportProgress } from '../../services/production.service';
 import { getWorkCenters } from '../../services/master-data.service';
 import apiClient from '../../services/apiClient';
 
@@ -24,8 +24,7 @@ const WorkerScanner: React.FC = () => {
   // Hàm fetch chi tiết work order để hiển thị tiến độ
   const fetchWorkOrderDetail = async (orderId: number) => {
     try {
-      const res = await apiClient.get(`/production/work-orders/${orderId}`);
-      const detail = (res as any).data || res;
+      const detail = await apiClient.get(`/production/work-orders/${orderId}`);
       setWorkOrderDetail(detail);
     } catch (error) {
       console.error("Lỗi tải chi tiết Lệnh sản xuất:", error);
@@ -61,7 +60,7 @@ const WorkerScanner: React.FC = () => {
             message.error("Lỗi đọc dữ liệu QR!");
           }
         },
-        (error) => {
+        () => {
           // Bỏ qua các cảnh báo không tìm thấy mã liên tục của camera
         }
       );

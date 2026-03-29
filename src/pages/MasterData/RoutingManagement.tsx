@@ -1,14 +1,16 @@
 import React, { useEffect, useState } from 'react';
-import { Table, Button, Card, message, Modal, Form, InputNumber, Select, Input, Tag } from 'antd';
+import { Table, Button, Card, message, Modal, Form, InputNumber, Select, Input, Tag, Segmented } from 'antd';
 import { PlusOutlined, NodeIndexOutlined } from '@ant-design/icons';
-// Import các hàm gọi API (Bạn nhớ thêm các hàm getRoutingsByItem, createRouting vào file service nhé)
-import { getItems, getWorkCenters } from '../../services/master-data.service';
-import apiClient from '../../services/apiClient';
+import { createRouting, getItems, getRoutingsByItem, getWorkCenters } from '../../services/master-data.service';
+import RoutingVisualBuilder from '../../components/master-data/RoutingVisualBuilder';
+
+type ViewMode = 'TABLE' | 'VISUAL';
 
 const RoutingManagement: React.FC = () => {
   const [items, setItems] = useState<any[]>([]);
   const [workCenters, setWorkCenters] = useState<any[]>([]);
   const [selectedItemId, setSelectedItemId] = useState<number | undefined>();
+  const [viewMode, setViewMode] = useState<ViewMode>('TABLE');
   
   const [routings, setRoutings] = useState<any[]>([]);
   const [loading, setLoading] = useState(false);
@@ -23,32 +25,32 @@ const RoutingManagement: React.FC = () => {
     }).catch(() => message.error("Lỗi tải dữ liệu danh mục"));
   }, []);
 
-  // Tải danh sách Công đoạn (Routing) khi chọn 1 Sản phẩm
-  useEffect(() => {
+  const fetchRoutings = async () => {
     if (selectedItemId) {
       setLoading(true);
-      apiClient.get(`/master-data/routings/item/${selectedItemId}`)
+      getRoutingsByItem(selectedItemId)
         .then((res: any) => setRoutings(res))
         .catch(() => message.error("Lỗi tải quy trình sản xuất"))
         .finally(() => setLoading(false));
     } else {
       setRoutings([]);
     }
+  };
+
+  // Tải danh sách Công đoạn (Routing) khi chọn 1 Sản phẩm
+  useEffect(() => {
+    fetchRoutings();
   }, [selectedItemId]);
 
   const handleAddRouting = async (values: any) => {
     try {
       const payload = { ...values, itemId: selectedItemId };
-      await apiClient.post('/master-data/routings', payload);
+      await createRouting(payload);
       message.success("Thêm công đoạn thành công!");
       setIsModalOpen(false);
       form.resetFields();
       
-      // Tải lại bảng ngay lập tức
-      if (selectedItemId) {
-        const newData = await apiClient.get(`/master-data/routings/item/${selectedItemId}`);
-        setRoutings(newData as any);
-      }
+      await fetchRoutings();
     } catch (error) {
       message.error("Lỗi khi thêm công đoạn!");
     }
@@ -92,7 +94,19 @@ const RoutingManagement: React.FC = () => {
   ];
 
   return (
-    <Card title={<span className="text-xl font-bold"><NodeIndexOutlined className="mr-2"/> Thiết lập Quy trình (Routing)</span>}>
+    <Card 
+      title={<span className="text-xl font-bold"><NodeIndexOutlined className="mr-2"/> Thiết lập Quy trình (Routing)</span>}
+      extra={
+        <Segmented
+          value={viewMode}
+          onChange={(val) => setViewMode(val as ViewMode)}
+          options={[
+            { label: 'Chế độ Bảng', value: 'TABLE' },
+            { label: 'Chế độ Kéo thả', value: 'VISUAL' },
+          ]}
+        />
+      }
+    >
       
       {/* KHU VỰC CHỌN SẢN PHẨM */}
       <div className="mb-6 flex items-center gap-4 bg-gray-50 p-4 rounded-md border border-gray-200">
@@ -111,8 +125,7 @@ const RoutingManagement: React.FC = () => {
         </Select>
       </div>
 
-      {/* BẢNG CÔNG ĐOẠN */}
-      {selectedItemId && (
+      {selectedItemId && viewMode === 'TABLE' && (
         <>
           <div className="mb-4">
             <Button type="primary" icon={<PlusOutlined />} onClick={() => setIsModalOpen(true)}>
@@ -123,8 +136,17 @@ const RoutingManagement: React.FC = () => {
         </>
       )}
 
+      {selectedItemId && viewMode === 'VISUAL' && (
+        <RoutingVisualBuilder itemId={selectedItemId} onSynced={fetchRoutings} />
+      )}
+
       {/* POPUP THÊM CÔNG ĐOẠN */}
-      <Modal title="Thêm Công Đoạn Sản Xuất" open={isModalOpen} onCancel={() => setIsModalOpen(false)} onOk={() => form.submit()}>
+      <Modal
+        title="Thêm Công Đoạn Sản Xuất"
+        open={isModalOpen}
+        onCancel={() => setIsModalOpen(false)}
+        onOk={() => form.submit()}
+      >
         <Form form={form} layout="vertical" onFinish={handleAddRouting}>
           
           <Form.Item name="stepNumber" label="Thứ tự bước (1, 2, 3...)" rules={[{ required: true }]}>

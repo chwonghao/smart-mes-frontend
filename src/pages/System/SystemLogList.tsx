@@ -16,8 +16,7 @@ const SystemLogList: React.FC = () => {
     try {
       // Tùy thuộc vào Backend của bạn đã có API lấy toàn bộ lịch sử cảnh báo chưa.
       // Nếu chưa, bạn có thể tạm dùng endpoint lấy thông báo hiện tại.
-      const res = await apiClient.get('/realtime/alerts'); 
-      const data = (res as any).data || res;
+      const data = await apiClient.get('/realtime/alerts');
       setLogs(data);
     } catch (error) {
       message.error("Lỗi tải nhật ký hệ thống!");

@@ -1,7 +1,7 @@
 import apiClient from './apiClient';
 
 export const getAllUsers = async (): Promise<any[]> => {
-  return apiClient.get('/users');
+  return apiClient.get<any[]>('/users');
 };
 
 export const createUser = async (data: any): Promise<any> => {

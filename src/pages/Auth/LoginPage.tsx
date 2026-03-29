@@ -1,20 +1,17 @@
 import React, { useState } from 'react';
 import { Form, Input, Button, Card, Typography, message } from 'antd';
 import { UserOutlined, LockOutlined } from '@ant-design/icons';
-import { useNavigate } from 'react-router-dom';
 import apiClient from '../../services/apiClient';
 
 const { Title, Text } = Typography;
 
 const LoginPage: React.FC = () => {
   const [loading, setLoading] = useState(false);
-  const navigate = useNavigate();
 
   const onFinish = async (values: any) => {
     setLoading(true);
     try {
-      const res = await apiClient.post('/auth/login', values);
-      const data = (res as any).data || res;
+      const data = await apiClient.post('/auth/login', values);
       
       // Lưu user info vào localStorage (không lưu token - sử dụng HttpOnly Cookie thay thế)
       // Backend sẽ tự động gửi cookie trong các request tiếp theo
@@ -25,7 +22,7 @@ const LoginPage: React.FC = () => {
       if (data.role === 'ROLE_WORKER') {
         window.location.href = '/mobile/scan';
       } else {
-        window.location.href = '/dashboard'; 
+        window.location.href = '/';
       }
     } catch (error) {
       message.error('Sai tài khoản hoặc mật khẩu!');

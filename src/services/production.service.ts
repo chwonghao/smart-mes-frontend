@@ -2,7 +2,7 @@ import apiClient from './apiClient';
 import type { WorkOrder } from '../types/production.type';
 
 export const getWorkOrders = async (): Promise<WorkOrder[]> => {
-  return apiClient.get('/production/work-orders');
+  return apiClient.get<WorkOrder[]>('/production/work-orders');
 };
 
 export const createWorkOrder = async (data: Partial<WorkOrder>) => {
