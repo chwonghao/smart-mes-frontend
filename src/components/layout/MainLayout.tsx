@@ -21,7 +21,9 @@ const MainLayout: React.FC = () => {
   const navigate = useNavigate();
   const location = useLocation();
   const { settings } = useSettings();
-  const factoryName = settings['FACTORY_NAME'] || 'SMART MES';
+  const factoryName = settings['FACTORY_NAME'] || 'SmartMES Factory';
+  const systemTitle = settings['SYSTEM_TITLE'] || 'SmartMES';
+  const shortTitle = settings['SYSTEM_SHORT_TITLE'] || 'MES';
 
   const { notifications, unreadCount, clearCount } = useWebSocket('/topic/alerts');
 
@@ -147,7 +149,7 @@ const MainLayout: React.FC = () => {
       <Sider trigger={null} collapsible collapsed={collapsed} theme="light" className="shadow-md">
         <div className="h-16 flex items-center justify-center border-b border-gray-100">
           <h1 className={`text-blue-600 font-bold transition-all ${collapsed ? 'text-xl' : 'text-2xl'}`}>
-            {collapsed ? 'MES' : factoryName}
+            {collapsed ? shortTitle : factoryName}
           </h1>
         </div>
         <Menu
@@ -177,6 +179,10 @@ const MainLayout: React.FC = () => {
             onClick={() => setCollapsed(!collapsed)}
             style={{ fontSize: '16px', width: 64, height: 64 }}
           />
+
+          <div className="hidden md:block">
+            <span className="text-base font-semibold text-gray-700">{systemTitle}</span>
+          </div>
 
           <div className="flex items-center gap-6">
             <Popover

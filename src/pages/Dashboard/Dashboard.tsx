@@ -18,6 +18,7 @@ import apiClient from '../../services/apiClient';
 import SockJS from 'sockjs-client';
 import { Stomp } from '@stomp/stompjs';
 import { getWorkCenters } from '../../services/master-data.service';
+import { useSettings } from '../../contexts/SettingContext';
 
 const { Text } = Typography;
 
@@ -49,10 +50,12 @@ const Dashboard: React.FC = () => {
   const [machineStats, setMachineStats] = useState<MachineStats>({ total: 0, running: 0, down: 0, idle: 0 });
   const [alerts, setAlerts] = useState<AlertFeed[]>([]);
   const [loading, setLoading] = useState<boolean>(true);
+  const { settings } = useSettings();
+  const maxNgRate = parseFloat(settings['MAX_NG_RATE'] || '5');
 
-  const [defectRate] = useState<number>(1.2); 
+  const defectRate = Number((stats as any)?.defectRate ?? 1.2);
 
-  const fetchData = async () => {
+  const fetchDashboardStats = async () => {
     setLoading(true);
     try {
       const [statsRes, centersRes, alertsRes] = await Promise.all([
@@ -80,7 +83,7 @@ const Dashboard: React.FC = () => {
   };
 
   useEffect(() => {
-    fetchData();
+    fetchDashboardStats();
 
     // SỬA LỖI 1: Dùng hàm Factory để Stomp tự động reconnect
     const stompClient = Stomp.over(() => new SockJS('/ws-mes')); 
@@ -88,15 +91,30 @@ const Dashboard: React.FC = () => {
 
     stompClient.connect({}, () => {
       stompClient.subscribe('/topic/dashboard', (wsMessage) => { 
-        if (wsMessage.body === 'NEW_ORDER') message.info('Có Lệnh sản xuất mới!');
-        else if (wsMessage.body === 'PROGRESS_UPDATED') message.success('Có báo cáo sản lượng mới!');
-        else if (wsMessage.body === 'INVENTORY_UPDATED') message.info('Biến động Kho: Dữ liệu tồn kho vừa được cập nhật!');
-        fetchData(); 
+        let eventType = wsMessage.body;
+
+        try {
+          const parsed = JSON.parse(wsMessage.body);
+          eventType = parsed?.type || eventType;
+        } catch {
+          // Body có thể là string event thuần như "NEW_ORDER"
+        }
+
+        if (eventType === 'NEW_ORDER') message.info('Có Lệnh sản xuất mới!');
+        else if (eventType === 'PROGRESS_UPDATED') message.success('Có báo cáo sản lượng mới!');
+        else if (eventType === 'INVENTORY_UPDATED') message.info('Biến động Kho: Dữ liệu tồn kho vừa được cập nhật!');
+        else if (eventType === 'SETTINGS_UPDATED') {
+          message.info('Cấu hình hệ thống vừa được cập nhật!');
+          fetchDashboardStats();
+          return;
+        }
+
+        fetchDashboardStats(); 
       });
 
       stompClient.subscribe('/topic/alerts', () => {
         message.warning('Cảnh báo hệ thống mới!');
-        fetchData(); 
+        fetchDashboardStats(); 
       });
     });
 
@@ -121,7 +139,7 @@ const Dashboard: React.FC = () => {
         <WarningOutlined className="text-5xl text-red-400 mb-4" />
         <h2 className="text-xl font-bold">Không có dữ liệu</h2>
         <p>Hệ thống không thể kết nối đến máy chủ. Vui lòng kiểm tra lại Backend.</p>
-        <Button type="primary" className="mt-4" onClick={fetchData}>Thử lại ngay</Button>
+        <Button type="primary" className="mt-4" onClick={fetchDashboardStats}>Thử lại ngay</Button>
       </div>
     );
   }
@@ -156,7 +174,7 @@ const Dashboard: React.FC = () => {
         <Button 
           type="primary" 
           icon={<SyncOutlined spin={loading} />} 
-          onClick={fetchData}
+          onClick={fetchDashboardStats}
           className="bg-blue-600 hover:bg-blue-500 shadow-md"
         >
           Làm mới dữ liệu
@@ -203,7 +221,7 @@ const Dashboard: React.FC = () => {
               prefix={<WarningOutlined className="text-orange-400 mr-2" />} 
               valueStyle={{ color: '#fb923c', fontSize: '1.8rem', fontWeight: 'bold' }}
             />
-            <div className="mt-2 text-xs text-gray-400">Ngưỡng an toàn: &lt; 2.0%</div>
+            <div className="mt-2 text-xs text-gray-400">Ngưỡng an toàn: &lt; {maxNgRate.toFixed(1)}%</div>
           </Card>
         </Col>
 

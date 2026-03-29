@@ -14,10 +14,17 @@ export const SettingProvider: React.FC<{ children: React.ReactNode }> = ({ child
   const refreshSettings = async () => {
     try {
       // Kiểm tra user đã đăng nhập bằng role (token được lưu ở HttpOnly cookie)
-      if (localStorage.getItem('role')) {
-        const data = await getSystemSettings();
-        setSettings(data);
+      if (!localStorage.getItem('role')) {
+        setSettings({});
+        return;
       }
+
+      const data = await getSystemSettings();
+      const normalizedSettings = Object.fromEntries(
+        Object.entries(data || {}).map(([key, value]) => [key, String(value ?? '')])
+      ) as Record<string, string>;
+
+      setSettings(normalizedSettings);
     } catch (error) {
       console.error("Không thể tải cấu hình toàn cục", error);
     }

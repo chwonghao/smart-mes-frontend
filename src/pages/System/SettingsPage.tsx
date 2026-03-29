@@ -48,8 +48,8 @@ const SettingsPage: React.FC = () => {
       });
 
       await saveSystemSettings(payload);
-      await refreshSettings();
       message.success("Hệ thống đã được cập nhật cấu hình mới!");
+      await refreshSettings();
     } catch (error) {
       message.error("Lưu cài đặt thất bại! Hãy kiểm tra quyền truy cập.");
     } finally {

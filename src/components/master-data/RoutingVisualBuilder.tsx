@@ -1,5 +1,6 @@
-import React, { useCallback, useEffect, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useRef, useState, useMemo } from 'react';
 import { Card, Button, Empty, InputNumber, List, message, Typography } from 'antd';
+import { HolderOutlined } from '@ant-design/icons';
 import {
   ReactFlow,
   Controls,
@@ -13,10 +14,12 @@ import {
   type NodeChange,
   type EdgeChange,
   type ReactFlowInstance,
+  MarkerType,
 } from '@xyflow/react';
 import '@xyflow/react/dist/style.css';
 import { getRoutingsByItem, getWorkCenters, syncRoutingsByItem, type RoutingSyncDTO } from '../../services/master-data.service';
 import type { WorkCenter } from '../../types/master-data.type';
+import RoutingNode from './RoutingNode';
 
 const { Text } = Typography;
 
@@ -26,14 +29,18 @@ type RoutingNodeData = {
   name: string;
   operationName: string;
   standardTime: number;
+  setupTime?: number;
+  runTime?: number;
 };
+
+type FlowNode = Node<RoutingNodeData>;
 
 interface RoutingVisualBuilderProps {
   itemId?: number;
   onSynced?: () => Promise<void> | void;
 }
 
-const sortIdsByPosition = (ids: string[], map: Map<string, Node<RoutingNodeData>>) => {
+const sortIdsByPosition = (ids: string[], map: Map<string, FlowNode>) => {
   return [...ids].sort((a, b) => {
     const na = map.get(a);
     const nb = map.get(b);
@@ -45,13 +52,26 @@ const sortIdsByPosition = (ids: string[], map: Map<string, Node<RoutingNodeData>
 
 const RoutingVisualBuilder: React.FC<RoutingVisualBuilderProps> = ({ itemId, onSynced }) => {
   const [workCenters, setWorkCenters] = useState<WorkCenter[]>([]);
-  const [nodes, setNodes] = useState<Node<RoutingNodeData>[]>([]);
+  const [nodes, setNodes] = useState<FlowNode[]>([]);
   const [edges, setEdges] = useState<Edge[]>([]);
   const [saving, setSaving] = useState(false);
   const [defaultStandardTime, setDefaultStandardTime] = useState<number>(10);
 
   const wrapperRef = useRef<HTMLDivElement | null>(null);
-  const [rfInstance, setRfInstance] = useState<ReactFlowInstance | null>(null);
+  const [rfInstance, setRfInstance] = useState<ReactFlowInstance<FlowNode, Edge> | null>(null);
+
+  // Register custom node types
+  const nodeTypes = useMemo(() => ({ routingNode: RoutingNode }), []);
+
+  // Configure default edge options
+  const defaultEdgeOptions = useMemo(
+    () => ({
+      type: 'smoothstep',
+      animated: true,
+      markerEnd: { type: MarkerType.ArrowClosed },
+    }),
+    []
+  );
 
   useEffect(() => {
     getWorkCenters()
@@ -74,7 +94,7 @@ const RoutingVisualBuilder: React.FC<RoutingVisualBuilderProps> = ({ itemId, onS
           return seqA - seqB;
         });
 
-        const initialNodes: Node<RoutingNodeData>[] = sorted.map((routing, index) => {
+        const initialNodes: FlowNode[] = sorted.map((routing, index) => {
           const wcId = routing.workCenterId ?? routing.workCenter?.id;
           const wc = workCenters.find((w) => w.id === wcId);
           const name = routing.workCenterName || routing.workCenter?.name || wc?.name || `Work Center #${wcId}`;
@@ -89,8 +109,10 @@ const RoutingVisualBuilder: React.FC<RoutingVisualBuilderProps> = ({ itemId, onS
               name,
               operationName: routing.operationName || `Công đoạn ${index + 1}`,
               standardTime: routing.standardTime || defaultStandardTime,
+              setupTime: routing.setupTime || 0,
+              runTime: routing.runTime || 0,
             },
-            type: 'default',
+            type: 'routingNode',
           };
         });
 
@@ -110,7 +132,7 @@ const RoutingVisualBuilder: React.FC<RoutingVisualBuilderProps> = ({ itemId, onS
       });
   }, [itemId, workCenters, defaultStandardTime]);
 
-  const onNodesChange = useCallback((changes: NodeChange<Node<RoutingNodeData>>[]) => {
+  const onNodesChange = useCallback((changes: NodeChange<FlowNode>[]) => {
     setNodes((nds) => applyNodeChanges(changes, nds));
   }, []);
 
@@ -144,7 +166,7 @@ const RoutingVisualBuilder: React.FC<RoutingVisualBuilderProps> = ({ itemId, onS
 
       const nodeId = `wc-${wc.id}-${Date.now()}`;
 
-      const newNode: Node<RoutingNodeData> = {
+      const newNode: FlowNode = {
         id: nodeId,
         position,
         data: {
@@ -153,8 +175,10 @@ const RoutingVisualBuilder: React.FC<RoutingVisualBuilderProps> = ({ itemId, onS
           name: wc.name,
           operationName: `Công đoạn ${nodes.length + 1}`,
           standardTime: defaultStandardTime,
+          setupTime: 0,
+          runTime: 0,
         },
-        type: 'default',
+        type: 'routingNode',
       };
 
       setNodes((nds) => nds.concat(newNode));
@@ -228,7 +252,7 @@ const RoutingVisualBuilder: React.FC<RoutingVisualBuilderProps> = ({ itemId, onS
       const nodeMap = new Map(nodes.map((n) => [n.id, n]));
 
       const payload: RoutingSyncDTO[] = orderedNodeIds.map((id, idx) => {
-        const node = nodeMap.get(id) as Node<RoutingNodeData>;
+        const node = nodeMap.get(id) as FlowNode;
         return {
           workCenterId: node.data.workCenterId,
           stepSequence: idx + 1,
@@ -270,15 +294,18 @@ const RoutingVisualBuilder: React.FC<RoutingVisualBuilderProps> = ({ itemId, onS
           renderItem={(wc) => (
             <List.Item>
               <div
-                className="w-full rounded border border-gray-200 bg-gray-50 p-2 cursor-grab hover:border-blue-400 transition-colors"
+                className="w-full rounded border border-gray-200 bg-gray-50 p-2 cursor-grab hover:border-blue-400 transition-colors flex items-center gap-2"
                 draggable
                 onDragStart={(event) => {
                   event.dataTransfer.setData('application/smartmes-work-center', JSON.stringify(wc));
                   event.dataTransfer.effectAllowed = 'move';
                 }}
               >
-                <div className="font-semibold text-blue-700">{wc.code}</div>
-                <div className="text-sm text-gray-700">{wc.name}</div>
+                <HolderOutlined className="text-gray-400 text-xs shrink-0" />
+                <div className="flex-1 min-w-0">
+                  <div className="font-semibold text-blue-700 truncate">{wc.code}</div>
+                  <div className="text-sm text-gray-700 truncate">{wc.name}</div>
+                </div>
               </div>
             </List.Item>
           )}
@@ -295,21 +322,33 @@ const RoutingVisualBuilder: React.FC<RoutingVisualBuilderProps> = ({ itemId, onS
         }
         styles={{ body: { padding: 0 } }}
       >
-        <div ref={wrapperRef} style={{ width: '100%', height: 560 }}>
-          <ReactFlow
-            nodes={nodes}
-            edges={edges}
-            onNodesChange={onNodesChange}
-            onEdgesChange={onEdgesChange}
-            onConnect={onConnect}
-            onDrop={onDrop}
-            onDragOver={onDragOver}
-            onInit={setRfInstance}
-            fitView
-          >
-            <Controls />
-            <Background />
-          </ReactFlow>
+        <div ref={wrapperRef} style={{ width: '100%', height: 560, position: 'relative' }}>
+          {nodes.length === 0 ? (
+            <div className="w-full h-full flex items-center justify-center bg-gray-50 border-t border-gray-200">
+              <div className="text-center">
+                <div className="mb-4 text-6xl text-gray-300">📦</div>
+                <div className="text-gray-400 font-medium">Kéo thả Work Center từ danh sách bên trái</div>
+                <div className="text-gray-400 text-sm mt-1">để bắt đầu thiết lập quy trình</div>
+              </div>
+            </div>
+          ) : (
+            <ReactFlow<FlowNode, Edge>
+              nodes={nodes}
+              edges={edges}
+              onNodesChange={onNodesChange}
+              onEdgesChange={onEdgesChange}
+              onConnect={onConnect}
+              onDrop={onDrop}
+              onDragOver={onDragOver}
+              onInit={setRfInstance}
+              nodeTypes={nodeTypes}
+              defaultEdgeOptions={defaultEdgeOptions}
+              fitView
+            >
+              <Controls />
+              <Background />
+            </ReactFlow>
+          )}
         </div>
       </Card>
     </div>

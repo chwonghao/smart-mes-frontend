@@ -66,7 +66,25 @@ export const getAllRoutings = async (): Promise<any[]> => {
 };
 
 export const getRoutingsByItem = async (itemId: number): Promise<any[]> => {
-  return apiClient.get<any[]>(`/master-data/routings/item/${itemId}`);
+  try {
+    return await apiClient.get<any[]>(`/master-data/routings/item/${itemId}`);
+  } catch (primaryError: any) {
+    // Fallback 1: một số backend map endpoint dạng /routings/{itemId}
+    try {
+      return await apiClient.get<any[]>(`/master-data/routings/${itemId}`);
+    } catch (_fallback1Error) {
+      // Fallback 2: một số backend trả toàn bộ routing và lọc theo itemId ở client
+      try {
+        const allRoutings = await apiClient.get<any[]>('/master-data/routings');
+        return allRoutings.filter((routing) => {
+          const routingItemId = routing.itemId ?? routing.item?.id;
+          return Number(routingItemId) === Number(itemId);
+        });
+      } catch (_fallback2Error) {
+        throw primaryError;
+      }
+    }
+  }
 };
 
 export const createRouting = async (data: any): Promise<any> => {
