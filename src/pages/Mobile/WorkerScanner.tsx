@@ -1,15 +1,17 @@
 import React, { useEffect, useState } from 'react';
-import { Card, Button, Form, InputNumber, Input, Select, message, Typography, Space, Divider, Tag } from 'antd';
+import { Card, Button, Form, InputNumber, Input, Select, message, Typography, Space, Divider, Tag, Progress } from 'antd';
 import { QrcodeOutlined, CheckCircleOutlined, LeftOutlined, CheckOutlined } from '@ant-design/icons';
 import { Html5QrcodeScanner } from 'html5-qrcode';
-import { reportProgress } from '../../services/production.service';
+import { reportProgress, getWorkOrders } from '../../services/production.service';
 import { getWorkCenters } from '../../services/master-data.service';
+import apiClient from '../../services/apiClient';
 
 const { Title, Text } = Typography;
 
 const WorkerScanner: React.FC = () => {
   const [scanning, setScanning] = useState(false);
   const [scanData, setScanData] = useState<{ id: number; orderNumber: string } | null>(null);
+  const [workOrderDetail, setWorkOrderDetail] = useState<any>(null);
   const [workCenters, setWorkCenters] = useState<any[]>([]);
   const [loading, setLoading] = useState(false);
   const [form] = Form.useForm();
@@ -18,6 +20,17 @@ const WorkerScanner: React.FC = () => {
   useEffect(() => {
     getWorkCenters().then(setWorkCenters).catch(() => message.error("Lỗi tải danh sách máy!"));
   }, []);
+
+  // Hàm fetch chi tiết work order để hiển thị tiến độ
+  const fetchWorkOrderDetail = async (orderId: number) => {
+    try {
+      const res = await apiClient.get(`/production/work-orders/${orderId}`);
+      const detail = (res as any).data || res;
+      setWorkOrderDetail(detail);
+    } catch (error) {
+      console.error("Lỗi tải chi tiết Lệnh sản xuất:", error);
+    }
+  };
 
   // Khởi tạo Camera Scanner
   useEffect(() => {
@@ -39,6 +52,8 @@ const WorkerScanner: React.FC = () => {
               setScanning(false);
               scanner?.clear(); // Tắt camera khi quét thành công
               message.success(`Đã nhận diện Lệnh: ${data.orderNumber}`);
+              // Fetch chi tiết work order ngay khi quét thành công
+              fetchWorkOrderDetail(data.id);
             } else {
               message.error("Mã QR không hợp lệ!");
             }
@@ -72,13 +87,32 @@ const WorkerScanner: React.FC = () => {
         values.operatorName
       );
       message.success("✅ ĐÃ GỬI BÁO CÁO THÀNH CÔNG!");
+      
+      // 🔑 QUAN TRỌNG: Refetch chi tiết work order để cập nhật progress trên UI
+      await fetchWorkOrderDetail(scanData.id);
+      
       form.resetFields();
-      setScanData(null); // Quay lại màn hình chờ
+      // Không reset scanData ngay - để hiển thị progress mới được cập nhật
     } catch (error: any) {
       message.error(error.response?.data?.message || "Gửi báo cáo thất bại!");
     } finally {
       setLoading(false);
     }
+  };
+
+  // Hàm quét lại (reset)
+  const handleRescan = () => {
+    setScanData(null);
+    setWorkOrderDetail(null);
+    form.resetFields();
+  };
+
+  // Tính toán progress (%) từ work order detail
+  const calculateProgress = () => {
+    if (!workOrderDetail) return 0;
+    const planned = workOrderDetail.plannedQuantity || 0;
+    const actual = workOrderDetail.actualQuantity || 0;
+    return planned > 0 ? Math.round((actual / planned) * 100) : 0;
   };
 
   return (
@@ -122,9 +156,27 @@ const WorkerScanner: React.FC = () => {
       ) : (
         <Card className="shadow-md rounded-2xl border-t-4 border-t-blue-500">
           <div className="flex items-center justify-between mb-4">
-            <Button type="text" icon={<LeftOutlined />} onClick={() => setScanData(null)} className="text-gray-500 p-0">Quét lại</Button>
+            <Button type="text" icon={<LeftOutlined />} onClick={handleRescan} className="text-gray-500 p-0">Quét lại</Button>
             <Tag color="blue" className="text-sm m-0 px-3 py-1 font-bold">{scanData.orderNumber}</Tag>
           </div>
+          
+          {/* Hiển thị tiến độ hiện tại nếu có dữ liệu */}
+          {workOrderDetail && (
+            <div className="mb-4 p-3 bg-blue-50 rounded-md border border-blue-200">
+              <div className="flex justify-between items-center mb-2">
+                <span className="text-sm font-semibold text-gray-700">Tiến độ Lệnh sản xuất hiện tại</span>
+                <span className="text-lg font-bold text-blue-600">{calculateProgress()}%</span>
+              </div>
+              <Progress 
+                percent={calculateProgress()} 
+                size="small" 
+                status={workOrderDetail.status === 'COMPLETED' ? 'success' : 'active'}
+              />
+              <div className="text-xs text-gray-500 mt-2">
+                Đã làm: {workOrderDetail.actualQuantity || 0} / Mục tiêu: {workOrderDetail.plannedQuantity || 0}
+              </div>
+            </div>
+          )}
           
           <Divider className="my-3" />
           

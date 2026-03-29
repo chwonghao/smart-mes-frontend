@@ -13,8 +13,8 @@ export const SettingProvider: React.FC<{ children: React.ReactNode }> = ({ child
 
   const refreshSettings = async () => {
     try {
-      // Lấy Token kiểm tra xem đã đăng nhập chưa
-      if (localStorage.getItem('token')) {
+      // Kiểm tra user đã đăng nhập bằng role (token được lưu ở HttpOnly cookie)
+      if (localStorage.getItem('role')) {
         const data = await getSystemSettings();
         setSettings(data);
       }

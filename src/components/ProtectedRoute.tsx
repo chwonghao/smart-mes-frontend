@@ -7,16 +7,22 @@ interface Props {
 }
 
 const ProtectedRoute = ({ children, requiredRole }: Props) => {
-  const token = localStorage.getItem('token');
+  // Kiểm tra role từ localStorage (được set khi đăng nhập)
+  // Token được lưu ở HttpOnly cookie và tự động gửi bởi Axios
   const role = localStorage.getItem('role');
 
-  if (!token) {
+  if (!role) {
+    // Chưa đăng nhập, redirect tới login
     return <Navigate replace to="/login" />;
   }
+  
   if (role === 'ROLE_WORKER' && !location.pathname.startsWith('/mobile')) {
+    // Worker chỉ được vào mobile flow
     return <Navigate replace to="/mobile/scan" />;
   }
+  
   if (requiredRole && role !== requiredRole) {
+    // Không đủ quyền truy cập
     return <Navigate replace to="/" />;
   }
 

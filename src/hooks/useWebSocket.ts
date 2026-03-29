@@ -8,14 +8,12 @@ export const useWebSocket = (topic: string) => {
   const [unreadCount, setUnreadCount] = useState(0);
 
   useEffect(() => {
-    const token = localStorage.getItem('token');
-
     const client = new Client({
       webSocketFactory: () => new SockJS(import.meta.env.VITE_WS_URL),
       
-      connectHeaders: {
-        Authorization: token ? `Bearer ${token}` : '',
-      },
+      // HttpOnly cookie sẽ tự động được gửi qua SockJS
+      // Không cần set Authorization header nữa
+      connectHeaders: {},
       
       reconnectDelay: 5000,
       heartbeatIncoming: 4000,

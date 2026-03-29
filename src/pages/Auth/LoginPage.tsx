@@ -16,8 +16,8 @@ const LoginPage: React.FC = () => {
       const res = await apiClient.post('/auth/login', values);
       const data = (res as any).data || res;
       
-      // Lưu "Vé thông hành" (Token) và tên người dùng vào Local Storage
-      localStorage.setItem('token', data.token);
+      // Lưu user info vào localStorage (không lưu token - sử dụng HttpOnly Cookie thay thế)
+      // Backend sẽ tự động gửi cookie trong các request tiếp theo
       localStorage.setItem('fullName', data.fullName);
       localStorage.setItem('role', data.role);
       
