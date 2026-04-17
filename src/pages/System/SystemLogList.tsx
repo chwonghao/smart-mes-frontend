@@ -1,109 +1,194 @@
-import React, { useEffect, useState } from 'react';
-import { Table, Card, Tag, DatePicker, Select, Button, Space, message, Typography } from 'antd';
-import { ReloadOutlined, BugOutlined, WarningOutlined, InfoCircleOutlined } from '@ant-design/icons';
-import apiClient from '../../services/apiClient';
+import React, { useEffect, useMemo, useState } from 'react';
+import { Table, Card, Tag, Button, message, Typography, Empty } from 'antd';
+import type { ColumnsType, TablePaginationConfig } from 'antd/es/table';
+import { ReloadOutlined } from '@ant-design/icons';
+import dayjs from 'dayjs';
+import { getSystemLogs } from '../../services/system.service';
+import type { SystemLog } from '../../types/system.type';
 
-const { RangePicker } = DatePicker;
 const { Text } = Typography;
 
-const SystemLogList: React.FC = () => {
-  const [logs, setLogs] = useState<any[]>([]);
-  const [loading, setLoading] = useState(false);
+const getModuleColor = (module?: string) => {
+  const value = String(module || 'SYSTEM').toUpperCase();
+  if (value.includes('PRODUCTION')) return 'blue';
+  if (value.includes('INVENTORY')) return 'gold';
+  if (value.includes('MASTER_DATA')) return 'purple';
+  if (value.includes('SYSTEM')) return 'cyan';
+  if (value.includes('AUTH')) return 'geekblue';
+  return 'default';
+};
 
-  // Gọi API lấy danh sách toàn bộ log/cảnh báo (Giả định endpoint là /realtime/alerts hoặc /system/logs)
-  const fetchLogs = async () => {
+const getActionColor = (actionType?: string) => {
+  switch (String(actionType || '').toUpperCase()) {
+    case 'CREATE':
+      return 'green';
+    case 'UPDATE':
+      return 'gold';
+    case 'DELETE':
+      return 'red';
+    default:
+      return 'default';
+  }
+};
+
+const parseJsonText = (value?: string | null) => {
+  if (!value) return null;
+  try {
+    return JSON.parse(value);
+  } catch {
+    return value;
+  }
+};
+
+const renderJsonBlock = (value?: string | null) => {
+  const parsed = parseJsonText(value);
+
+  if (!parsed) {
+    return <Text type="secondary">Không có dữ liệu</Text>;
+  }
+
+  if (typeof parsed === 'string') {
+    return (
+      <pre className="m-0 max-h-72 overflow-auto rounded bg-gray-50 p-3 text-xs leading-5 text-gray-800">
+        {parsed}
+      </pre>
+    );
+  }
+
+  return (
+    <pre className="m-0 max-h-72 overflow-auto rounded bg-gray-50 p-3 text-xs leading-5 text-gray-800">
+      {JSON.stringify(parsed, null, 2)}
+    </pre>
+  );
+};
+
+const SystemLogList: React.FC = () => {
+  const [logs, setLogs] = useState<SystemLog[]>([]);
+  const [loading, setLoading] = useState(false);
+  const [pagination, setPagination] = useState<TablePaginationConfig>({
+    current: 1,
+    pageSize: 10,
+    total: 0,
+    showSizeChanger: true,
+    pageSizeOptions: ['10', '20', '50'],
+  });
+
+  const fetchLogs = async (nextPage = 1, nextSize = 10) => {
     setLoading(true);
     try {
-      // Tùy thuộc vào Backend của bạn đã có API lấy toàn bộ lịch sử cảnh báo chưa.
-      // Nếu chưa, bạn có thể tạm dùng endpoint lấy thông báo hiện tại.
-      const data = await apiClient.get('/realtime/alerts');
-      setLogs(data);
+      const page = await getSystemLogs({
+        page: nextPage - 1,
+        size: nextSize,
+        sort: 'createdAt,desc',
+      });
+
+      setLogs(page.content || []);
+      setPagination((prev) => ({
+        ...prev,
+        current: nextPage,
+        pageSize: nextSize,
+        total: page.totalElements || 0,
+      }));
     } catch (error) {
-      message.error("Lỗi tải nhật ký hệ thống!");
+      message.error('Lỗi tải nhật ký hệ thống!');
     } finally {
       setLoading(false);
     }
   };
 
   useEffect(() => {
-    fetchLogs();
+    fetchLogs(1, Number(pagination.pageSize || 10));
   }, []);
 
-  const getLogIconAndColor = (type: string) => {
-    switch (type) {
-      case 'MACHINE_DOWN': return { color: 'red', icon: <BugOutlined />, label: 'SỰ CỐ MÁY' };
-      case 'QC_ALERT': return { color: 'orange', icon: <WarningOutlined />, label: 'LỖI CHẤT LƯỢNG' };
-      case 'INFO': return { color: 'blue', icon: <InfoCircleOutlined />, label: 'THÔNG TIN' };
-      default: return { color: 'default', icon: <InfoCircleOutlined />, label: type || 'SYSTEM' };
-    }
-  };
-
-  const columns = [
-    {
-      title: 'Thời gian',
-      dataIndex: 'createdAt',
-      key: 'createdAt',
-      width: 180,
-      render: (val: any) => <span className="font-semibold text-gray-600">{val ? new Date(val).toLocaleString('vi-VN') : 'N/A'}</span>
-    },
-    {
-      title: 'Phân loại',
-      dataIndex: 'alertType',
-      key: 'alertType',
-      width: 180,
-      render: (type: string) => {
-        const { color, icon, label } = getLogIconAndColor(type);
-        return <Tag color={color} icon={icon} className="font-bold">{label}</Tag>;
-      }
-    },
-    {
-      title: 'Nội dung chi tiết',
-      dataIndex: 'message',
-      key: 'message',
-      render: (msg: string) => <Text className="text-gray-800">{msg}</Text>
-    },
-    {
-      title: 'Trạng thái',
-      dataIndex: 'isRead',
-      key: 'isRead',
-      width: 120,
-      render: (isRead: boolean) => (
-        <Tag color={isRead ? 'green' : 'red'}>{isRead ? 'Đã xem' : 'Chưa xem'}</Tag>
-      )
-    }
-  ];
+  const columns: ColumnsType<SystemLog> = useMemo(
+    () => [
+      {
+        title: 'Thời gian',
+        dataIndex: 'createdAt',
+        key: 'createdAt',
+        width: 190,
+        render: (value: string) => (
+          <span className="font-semibold text-gray-600">
+            {value ? dayjs(value).format('DD/MM/YYYY HH:mm:ss') : 'N/A'}
+          </span>
+        ),
+      },
+      {
+        title: 'Người thao tác',
+        dataIndex: 'createdBy',
+        key: 'createdBy',
+        width: 170,
+        render: (value: string) => value || 'SYSTEM',
+      },
+      {
+        title: 'Phân hệ',
+        dataIndex: 'module',
+        key: 'module',
+        width: 150,
+        render: (value: string) => <Tag color={getModuleColor(value)}>{value || 'SYSTEM'}</Tag>,
+      },
+      {
+        title: 'Hành động',
+        dataIndex: 'actionType',
+        key: 'actionType',
+        width: 130,
+        render: (value: string) => <Tag color={getActionColor(value)}>{value || 'UNKNOWN'}</Tag>,
+      },
+      {
+        title: 'Nội dung',
+        dataIndex: 'description',
+        key: 'description',
+        render: (value: string) => <Text className="text-gray-800">{value || 'Không có mô tả'}</Text>,
+      },
+    ],
+    []
+  );
 
   return (
-    <Card 
-      title={<span className="text-xl font-bold">Nhật ký Hệ thống (System Logs)</span>}
+    <Card
+      title={<span className="text-xl font-bold">Nhật ký Hệ thống (Audit Log)</span>}
       extra={
-        <Button type="primary" icon={<ReloadOutlined />} onClick={fetchLogs} loading={loading}>
+        <Button
+          type="primary"
+          icon={<ReloadOutlined />}
+          onClick={() => fetchLogs(Number(pagination.current || 1), Number(pagination.pageSize || 10))}
+          loading={loading}
+        >
           Làm mới
         </Button>
       }
       className="shadow-sm"
     >
-      <div className="mb-4 flex gap-4 bg-gray-50 p-4 rounded-md">
-        <Space>
-          <span className="font-medium">Lọc theo ngày:</span>
-          <RangePicker format="DD/MM/YYYY" />
-          <span className="font-medium ml-4">Loại sự kiện:</span>
-          <Select defaultValue="ALL" style={{ width: 150 }}>
-            <Select.Option value="ALL">Tất cả</Select.Option>
-            <Select.Option value="MACHINE_DOWN">Sự cố Máy</Select.Option>
-            <Select.Option value="QC_ALERT">Lỗi QC</Select.Option>
-          </Select>
-          <Button>Lọc</Button>
-        </Space>
-      </div>
-
-      <Table 
-        columns={columns} 
-        dataSource={logs} 
-        rowKey="id" 
+      <Table<SystemLog>
+        columns={columns}
+        dataSource={logs}
+        rowKey={(record) => String(record.id)}
         loading={loading}
-        pagination={{ pageSize: 15 }}
         bordered
+        locale={{
+          emptyText: <Empty description="Không có dữ liệu nhật ký" />,
+        }}
+        pagination={pagination}
+        onChange={(nextPagination) => {
+          const current = Number(nextPagination.current || 1);
+          const pageSize = Number(nextPagination.pageSize || 10);
+          fetchLogs(current, pageSize);
+        }}
+        expandable={{
+          rowExpandable: (record) => Boolean(record.oldValue || record.newValue),
+          expandedRowRender: (record) => (
+            <div className="grid grid-cols-1 gap-4 p-1 lg:grid-cols-2">
+              <div>
+                <div className="mb-2 font-semibold text-red-500">Dữ liệu cũ</div>
+                {renderJsonBlock(record.oldValue)}
+              </div>
+              <div>
+                <div className="mb-2 font-semibold text-green-600">Dữ liệu mới</div>
+                {renderJsonBlock(record.newValue)}
+              </div>
+            </div>
+          ),
+        }}
       />
     </Card>
   );
