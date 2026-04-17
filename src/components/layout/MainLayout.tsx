@@ -13,6 +13,7 @@ import {
 import { useNavigate, useLocation, Outlet } from 'react-router-dom';
 import { useWebSocket } from '../../hooks/useWebSocket';
 import { useSettings } from '../../contexts/SettingContext';
+import apiClient from '../../services/apiClient';
 
 const { Header, Sider, Content } = Layout;
 
@@ -46,9 +47,15 @@ const MainLayout: React.FC = () => {
   };
 
   // HÀM ĐĂNG XUẤT
-  const handleLogout = () => {
-    localStorage.clear(); // Xóa sạch Token và Thông tin
-    window.location.href = '/login';   // Đá về trang đăng nhập
+  const handleLogout = async () => {
+    try {
+      await apiClient.post('/auth/logout');
+    } catch {
+      // Không block luồng logout nếu API logout bị lỗi mạng.
+    } finally {
+      localStorage.clear(); // Xóa sạch Token và Thông tin
+      window.location.href = '/login';   // Đá về trang đăng nhập
+    }
   };
 
   const menuItems = [

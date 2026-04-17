@@ -5,13 +5,18 @@ import apiClient from '../../services/apiClient';
 
 const { Title, Text } = Typography;
 
+interface LoginResponse {
+  fullName: string;
+  role: string;
+}
+
 const LoginPage: React.FC = () => {
   const [loading, setLoading] = useState(false);
 
   const onFinish = async (values: any) => {
     setLoading(true);
     try {
-      const data = await apiClient.post('/auth/login', values);
+      const data = await apiClient.post<LoginResponse>('/auth/login', values);
       
       // Lưu user info vào localStorage (không lưu token - sử dụng HttpOnly Cookie thay thế)
       // Backend sẽ tự động gửi cookie trong các request tiếp theo

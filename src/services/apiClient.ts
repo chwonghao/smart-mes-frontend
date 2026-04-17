@@ -8,20 +8,58 @@ const apiClient = axios.create({
   withCredentials: true, // Gửi HttpOnly Cookie tự động trong mỗi request
 });
 
+let refreshPromise: Promise<void> | null = null;
+
+const clearClientAuthState = () => {
+  localStorage.removeItem('token');
+  localStorage.removeItem('fullName');
+  localStorage.removeItem('role');
+};
+
+const isAuthEndpoint = (url?: string) => {
+  if (!url) return false;
+  return url.includes('/auth/login') || url.includes('/auth/refresh') || url.includes('/auth/logout');
+};
+
+const requestRefreshToken = async () => {
+  if (!refreshPromise) {
+    refreshPromise = apiClient
+      .post('/auth/refresh')
+      .then(() => undefined)
+      .finally(() => {
+        refreshPromise = null;
+      });
+  }
+  return refreshPromise;
+};
+
 // Response interceptor: BÓC TÁCH DỮ LIỆU & XỬ LÝ LỖI
 apiClient.interceptors.response.use(
   (response) => {
     // Luôn trả về payload để các service/page dùng trực tiếp data
     return response.data;
   },
-  (error) => {
+  async (error) => {
+    const originalRequest = error.config as AxiosRequestConfig & { _retry?: boolean };
+
+    if (error.response?.status === 401 && originalRequest && !originalRequest._retry && !isAuthEndpoint(originalRequest.url)) {
+      originalRequest._retry = true;
+
+      try {
+        await requestRefreshToken();
+        return apiClient.request(originalRequest);
+      } catch (refreshError) {
+        clearClientAuthState();
+        window.location.href = '/login';
+        return Promise.reject(refreshError);
+      }
+    }
+
     if (error.response?.status === 401) {
-      // Clear toàn bộ auth state tạm và hard redirect về login
-      localStorage.removeItem('token');
-      localStorage.removeItem('fullName');
-      localStorage.removeItem('role');
+      clearClientAuthState();
       window.location.href = '/login';
     }
+
     return Promise.reject(error);
   }
 );
