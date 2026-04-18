@@ -1,5 +1,6 @@
 import React, { createContext, useCallback, useContext, useEffect, useMemo, useState } from 'react';
 import apiClient from '../services/apiClient';
+import type { ApiResponse } from '../types/api.type';
 
 export interface AuthUser {
   username: string;
@@ -32,9 +33,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   const refreshSession = useCallback(async (): Promise<AuthUser | null> => {
     try {
-      const me = await apiClient.get<AuthUser>('/users/me');
-      setUser(me);
-      return me;
+      const response = await apiClient.get<ApiResponse<AuthUser>>('/users/me');
+      setUser(response.data);
+      return response.data;
     } catch {
       setUser(null);
       return null;

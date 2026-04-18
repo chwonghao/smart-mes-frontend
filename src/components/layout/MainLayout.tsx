@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Layout, Menu, Button, theme, Badge, Popover, List, Typography, Dropdown } from 'antd';
+import { Layout, Menu, Button, theme, Badge, Popover, List, Typography, Dropdown, Drawer, Grid } from 'antd';
 import {
   MenuFoldOutlined,
   MenuUnfoldOutlined,
@@ -17,9 +17,11 @@ import apiClient from '../../services/apiClient';
 import { useAuth } from '../../contexts/AuthContext';
 
 const { Header, Sider, Content } = Layout;
+const { useBreakpoint } = Grid;
 
 const MainLayout: React.FC = () => {
   const [collapsed, setCollapsed] = useState(false);
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const navigate = useNavigate();
   const location = useLocation();
   const { settings } = useSettings();
@@ -33,6 +35,9 @@ const MainLayout: React.FC = () => {
   const {
     token: { colorBgContainer, borderRadiusLG },
   } = theme.useToken();
+  const screens = useBreakpoint();
+  const isMobile = !screens.md;
+  const isTablet = !!screens.md && !screens.lg;
 
   // LẤY THÔNG TIN TỪ LOCAL STORAGE (Người dùng vừa đăng nhập)
   const fullName = user?.fullName || 'Khách';
@@ -109,7 +114,7 @@ const MainLayout: React.FC = () => {
   ];
 
   const notificationContent = (
-    <div style={{ width: 320 }}>
+    <div style={{ width: isMobile ? 280 : 320 }}>
       <List
         size="small"
         header={<div className="font-bold border-b pb-2">Thông báo mới nhất</div>}
@@ -131,6 +136,13 @@ const MainLayout: React.FC = () => {
       />
     </div>
   );
+
+  const handleMenuClick = (key: string) => {
+    navigate(key);
+    if (isMobile) {
+      setMobileMenuOpen(false);
+    }
+  };
 
   // MENU XỔ XUỐNG CỦA AVATAR
   const userMenu = [
@@ -155,26 +167,46 @@ const MainLayout: React.FC = () => {
 
   return (
     <Layout style={{ minHeight: '100vh' }}>
-      <Sider trigger={null} collapsible collapsed={collapsed} theme="light" className="shadow-md">
-        <div className="h-16 flex items-center justify-center border-b border-gray-100">
-          <h1 className={`text-blue-600 font-bold transition-all ${collapsed ? 'text-xl' : 'text-2xl'}`}>
-            {collapsed ? shortTitle : factoryName}
-          </h1>
-        </div>
+      {!isMobile && (
+        <Sider trigger={null} collapsible collapsed={collapsed} theme="light" className="shadow-md">
+          <div className="h-16 flex items-center justify-center border-b border-gray-100 px-2">
+            <h1 className={`text-blue-600 font-bold transition-all truncate ${collapsed ? 'text-xl' : 'text-2xl'}`}>
+              {collapsed ? shortTitle : factoryName}
+            </h1>
+          </div>
+          <Menu
+            mode="inline"
+            selectedKeys={[location.pathname]}
+            defaultOpenKeys={['master-data', 'production']}
+            items={menuItems}
+            onClick={({ key }) => handleMenuClick(String(key))}
+            style={{ borderRight: 0 }}
+          />
+        </Sider>
+      )}
+
+      <Drawer
+        title={<span className="font-bold text-blue-600">{factoryName}</span>}
+        placement="left"
+        width={280}
+        onClose={() => setMobileMenuOpen(false)}
+        open={isMobile && mobileMenuOpen}
+        bodyStyle={{ padding: 0 }}
+      >
         <Menu
           mode="inline"
           selectedKeys={[location.pathname]}
           defaultOpenKeys={['master-data', 'production']}
           items={menuItems}
-          onClick={({ key }) => navigate(key)}
+          onClick={({ key }) => handleMenuClick(String(key))}
           style={{ borderRight: 0 }}
         />
-      </Sider>
+      </Drawer>
 
       <Layout>
         <Header
           style={{
-            padding: '0 16px',
+            padding: isMobile ? '0 8px' : '0 16px',
             background: colorBgContainer,
             display: 'flex',
             justifyContent: 'space-between',
@@ -184,16 +216,22 @@ const MainLayout: React.FC = () => {
         >
           <Button
             type="text"
-            icon={collapsed ? <MenuUnfoldOutlined /> : <MenuFoldOutlined />}
-            onClick={() => setCollapsed(!collapsed)}
-            style={{ fontSize: '16px', width: 64, height: 64 }}
+            icon={isMobile ? <MenuUnfoldOutlined /> : (collapsed ? <MenuUnfoldOutlined /> : <MenuFoldOutlined />)}
+            onClick={() => {
+              if (isMobile) {
+                setMobileMenuOpen(true);
+                return;
+              }
+              setCollapsed(!collapsed);
+            }}
+            style={{ fontSize: '16px', width: isMobile ? 48 : 64, height: 64 }}
           />
 
           <div className="hidden md:block">
-            <span className="text-base font-semibold text-gray-700">{systemTitle}</span>
+            <span className={`font-semibold text-gray-700 ${isTablet ? 'text-sm' : 'text-base'}`}>{systemTitle}</span>
           </div>
 
-          <div className="flex items-center gap-6">
+          <div className={`flex items-center ${isMobile ? 'gap-2' : 'gap-6'}`}>
             <Popover
               content={notificationContent}
               trigger="click"
@@ -204,15 +242,15 @@ const MainLayout: React.FC = () => {
                 <Button
                   type="text"
                   shape="circle"
-                  icon={<BellOutlined className="text-xl text-gray-600" />}
+                  icon={<BellOutlined className={`${isMobile ? 'text-lg' : 'text-xl'} text-gray-600`} />}
                 />
               </Badge>
             </Popover>
 
             {/* BOX THÔNG TIN NGƯỜI DÙNG & MENU ĐĂNG XUẤT */}
             <Dropdown menu={{ items: userMenu }} placement="bottomRight" trigger={['click']}>
-              <div className="flex items-center gap-2 cursor-pointer hover:bg-gray-50 p-2 rounded-md transition-all">
-                <div className="w-8 h-8 rounded-full bg-blue-600 text-white flex items-center justify-center font-bold">
+              <div className={`flex items-center gap-2 cursor-pointer hover:bg-gray-50 rounded-md transition-all ${isMobile ? 'p-1' : 'p-2'}`}>
+                <div className={`${isMobile ? 'w-7 h-7 text-xs' : 'w-8 h-8'} rounded-full bg-blue-600 text-white flex items-center justify-center font-bold`}>
                   {/* Lấy chữ cái đầu của Tên làm Avatar */}
                   {fullName.charAt(0).toUpperCase()}
                 </div>
@@ -228,8 +266,8 @@ const MainLayout: React.FC = () => {
 
         <Content
           style={{
-            margin: '24px 16px',
-            padding: 24,
+            margin: isMobile ? '12px 8px' : '24px 16px',
+            padding: isMobile ? 12 : isTablet ? 16 : 24,
             minHeight: 280,
             background: colorBgContainer,
             borderRadius: borderRadiusLG,

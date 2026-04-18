@@ -1,9 +1,13 @@
 import React, { useEffect, useState } from 'react';
-import { Table, Tag, Button, Card, Space, message, Modal, Form, Input, Select, Popconfirm } from 'antd';
+import { Table, Tag, Button, Card, Space, message, Modal, Form, Input, Select, Popconfirm, Grid } from 'antd';
 import { UserAddOutlined, ReloadOutlined, KeyOutlined, DeleteOutlined } from '@ant-design/icons';
 import { getAllUsers, createUser, resetPassword, deleteUser } from '../../services/user.service';
 
+const { useBreakpoint } = Grid;
+
 const UserManagement: React.FC = () => {
+  const screens = useBreakpoint();
+  const isMobile = !screens.md;
   const [users, setUsers] = useState<any[]>([]);
   const [loading, setLoading] = useState(false);
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -31,7 +35,7 @@ const UserManagement: React.FC = () => {
       form.resetFields();
       fetchUsers();
     } catch (error: any) {
-      message.error(error.response?.data || "Lỗi khi tạo tài khoản!");
+      message.error(error.response?.data?.message || "Lỗi khi tạo tài khoản!");
     }
   };
 
@@ -95,15 +99,22 @@ const UserManagement: React.FC = () => {
     <Card 
       title={<span className="text-xl font-bold">Quản lý Tài khoản Hệ thống</span>}
       extra={
-        <Space>
+        <Space size={isMobile ? 8 : 12} wrap>
           <Button icon={<ReloadOutlined />} onClick={fetchUsers}>Làm mới</Button>
           <Button type="primary" icon={<UserAddOutlined />} onClick={() => setIsModalOpen(true)}>Thêm tài khoản</Button>
         </Space>
       }
     >
-      <Table columns={columns} dataSource={users} rowKey="id" loading={loading} />
+      <Table columns={columns} dataSource={users} rowKey="id" loading={loading} scroll={{ x: 900 }} />
 
-      <Modal title="Tạo tài khoản nhân viên" open={isModalOpen} onCancel={() => setIsModalOpen(false)} onOk={() => form.submit()} destroyOnHidden>
+      <Modal
+        title="Tạo tài khoản nhân viên"
+        open={isModalOpen}
+        onCancel={() => setIsModalOpen(false)}
+        onOk={() => form.submit()}
+        destroyOnHidden
+        width={isMobile ? '92vw' : 520}
+      >
         <Form form={form} layout="vertical" onFinish={handleCreate}>
           <Form.Item name="username" label="Tên đăng nhập" rules={[{ required: true }]}>
             <Input placeholder="VD: nguyenvana" />

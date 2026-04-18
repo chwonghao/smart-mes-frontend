@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { Table, Tag, Button, Card, Progress, Space, message, Modal, Form, Select, InputNumber, DatePicker, Input, QRCode } from 'antd';
+import { Table, Tag, Button, Card, Progress, Space, message, Modal, Form, Select, InputNumber, DatePicker, Input, QRCode, Grid } from 'antd';
 import dayjs from 'dayjs';
 import { PlusOutlined, CheckCircleOutlined, HistoryOutlined, QrcodeOutlined, PrinterOutlined } from '@ant-design/icons';
 import SockJS from 'sockjs-client';
@@ -11,7 +11,11 @@ import { getWorkOrders, createWorkOrder, reportProgress } from '../../services/p
 import { getWorkCenters, getItems } from '../../services/master-data.service';
 import apiClient from '../../services/apiClient';
 
+const { useBreakpoint } = Grid;
+
 const WorkOrderList: React.FC = () => {
+  const screens = useBreakpoint();
+  const isMobile = !screens.md;
   const [orders, setOrders] = useState<WorkOrder[]>([]);
   const [workCenters, setWorkCenters] = useState<WorkCenter[]>([]);
   const [loading, setLoading] = useState(false);
@@ -208,12 +212,16 @@ const WorkOrderList: React.FC = () => {
   return (
     <Card 
       title={<span className="text-xl font-bold">Quản lý Lệnh sản xuất</span>}
-      extra={<Button type="primary" icon={<PlusOutlined />} onClick={() => setIsModalOpen(true)}>Tạo lệnh mới</Button>}
+      extra={
+        <Button type="primary" icon={<PlusOutlined />} onClick={() => setIsModalOpen(true)} size={isMobile ? 'small' : 'middle'}>
+          Tạo lệnh mới
+        </Button>
+      }
     >
-      <Table dataSource={orders} columns={columns} rowKey="id" loading={loading} />
+      <Table dataSource={orders} columns={columns} rowKey="id" loading={loading} scroll={{ x: 1100 }} />
 
       {/* POPUP 1: TẠO LỆNH MỚI */}
-      <Modal title="Tạo Lệnh Sản Xuất Mới" open={isModalOpen} onCancel={() => setIsModalOpen(false)} onOk={() => form.submit()}>
+      <Modal title="Tạo Lệnh Sản Xuất Mới" open={isModalOpen} onCancel={() => setIsModalOpen(false)} onOk={() => form.submit()} width={isMobile ? '94vw' : 620}>
         <Form form={form} layout="vertical" onFinish={handleCreate}>
           <Form.Item name="plannedQuantity" label="Số lượng mục tiêu" rules={[{ required: true, message: 'Vui lòng nhập số lượng!' }]}>
             <InputNumber min={1} className="w-full" placeholder="Ví dụ: 1000" />
@@ -226,7 +234,7 @@ const WorkOrderList: React.FC = () => {
             </Select>
           </Form.Item>
           <Form.Item label="Ngày giờ bắt đầu" required>
-            <div className="flex gap-2">
+            <div className="flex gap-2 flex-col sm:flex-row">
               <Form.Item name="plannedStartDate" noStyle rules={[{ required: true, message: 'Vui lòng chọn ngày giờ!' }]}>
                 <DatePicker showTime format="YYYY-MM-DD HH:mm:ss" className="flex-1" />
               </Form.Item>
@@ -253,7 +261,7 @@ const WorkOrderList: React.FC = () => {
       </Modal>
 
       {/* POPUP 2: BÁO CÁO SẢN LƯỢNG */}
-      <Modal title="Báo cáo Sản lượng Thực tế" open={reportModal.open} onCancel={() => setReportModal({open: false})} onOk={() => reportForm.submit()} destroyOnHidden>
+      <Modal title="Báo cáo Sản lượng Thực tế" open={reportModal.open} onCancel={() => setReportModal({open: false})} onOk={() => reportForm.submit()} destroyOnHidden width={isMobile ? '94vw' : 560}>
         <Form form={reportForm} layout="vertical" onFinish={handleReport}>
           <Form.Item name="operatorName" label="Người thực hiện / Người báo cáo" rules={[{required: true, message: 'Vui lòng nhập tên người thực hiện!'}]}>
              <Input placeholder="VD: Nguyễn Văn A, Trần Thị B..." />
@@ -293,7 +301,7 @@ const WorkOrderList: React.FC = () => {
         footer={[
           <Button key="close" type="primary" onClick={() => setHistoryModal({open: false})}>Đóng</Button>
         ]}
-        width={700}
+        width={isMobile ? '96vw' : 700}
       >
         <Table 
           dataSource={logs} 
@@ -302,6 +310,7 @@ const WorkOrderList: React.FC = () => {
           loading={loadingLogs} 
           pagination={{ pageSize: 5 }} 
           bordered
+          scroll={{ x: 680 }}
           locale={{ emptyText: 'Chưa có báo cáo nào cho lệnh này.' }}
         />
       </Modal>
@@ -312,7 +321,7 @@ const WorkOrderList: React.FC = () => {
         open={qrModal.open} 
         onCancel={() => setQrModal({open: false})} 
         footer={null}
-        width={350}
+        width={isMobile ? '92vw' : 350}
         centered
       >
         <div className="flex flex-col items-center justify-center p-6 border-2 border-dashed border-gray-300 rounded-lg bg-gray-50 mt-4">

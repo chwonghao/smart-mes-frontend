@@ -4,12 +4,15 @@ import { UserOutlined, LockOutlined } from '@ant-design/icons';
 import { useNavigate } from 'react-router-dom';
 import apiClient from '../../services/apiClient';
 import { useAuth } from '../../contexts/AuthContext';
+import type { ApiResponse } from '../../types/api.type';
 
 const { Title, Text } = Typography;
 
 interface LoginResponse {
+  username: string;
   fullName: string;
   role: string;
+  tenantId: string;
 }
 
 const LoginPage: React.FC = () => {
@@ -20,13 +23,14 @@ const LoginPage: React.FC = () => {
   const onFinish = async (values: any) => {
     setLoading(true);
     try {
-      const loginResponse = await apiClient.post<LoginResponse>('/auth/login', values);
+      const response = await apiClient.post<ApiResponse<LoginResponse>>('/auth/login', values);
+      const loginResponse = response.data;
 
       setSession({
-        username: values.username,
+        username: loginResponse.username,
         fullName: loginResponse.fullName,
         role: loginResponse.role,
-        tenantId: '',
+        tenantId: loginResponse.tenantId,
       });
 
       message.success(`Chào mừng ${loginResponse.fullName} trở lại!`);
@@ -43,9 +47,9 @@ const LoginPage: React.FC = () => {
   };
 
   return (
-    <div className="flex justify-center items-center h-screen bg-slate-100">
-      <Card className="w-full max-w-md shadow-xl rounded-2xl p-6 border-0">
-        <div className="text-center mb-8">
+    <div className="flex justify-center items-center min-h-screen bg-slate-100 p-4 sm:p-6">
+      <Card className="w-full max-w-md shadow-xl rounded-2xl p-4 sm:p-6 border-0">
+        <div className="text-center mb-6 sm:mb-8">
           <Title level={2} className="m-0 text-blue-600 font-bold">SmartMES</Title>
           <Text type="secondary" className="text-sm">Hệ thống Điều hành Sản xuất Toàn diện</Text>
         </div>

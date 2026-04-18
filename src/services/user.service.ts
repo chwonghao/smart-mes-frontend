@@ -1,17 +1,20 @@
 import apiClient from './apiClient';
+import type { ApiResponse } from '../types/api.type';
 
 export const getAllUsers = async (): Promise<any[]> => {
-  return apiClient.get<any[]>('/users');
+  const response = await apiClient.get<ApiResponse<any[]>>('/users');
+  return response.data;
 };
 
 export const createUser = async (data: any): Promise<any> => {
-  return apiClient.post('/users', data);
+  const response = await apiClient.post<ApiResponse<any>>('/users', data);
+  return response.data;
 };
 
 export const resetPassword = async (id: number, newPassword: string): Promise<any> => {
-  return apiClient.patch(`/users/${id}/reset-password`, { newPassword });
+  return apiClient.patch<ApiResponse<null>>(`/users/${id}/reset-password`, { newPassword });
 };
 
 export const deleteUser = async (id: number): Promise<any> => {
-  return apiClient.delete(`/users/${id}`);
+  return apiClient.delete<ApiResponse<null>>(`/users/${id}`);
 };
