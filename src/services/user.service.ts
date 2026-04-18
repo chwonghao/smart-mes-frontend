@@ -9,7 +9,7 @@ export const createUser = async (data: any): Promise<any> => {
 };
 
 export const resetPassword = async (id: number, newPassword: string): Promise<any> => {
-  return apiClient.patch(`/users/${id}/reset-password`, newPassword);
+  return apiClient.patch(`/users/${id}/reset-password`, { newPassword });
 };
 
 export const deleteUser = async (id: number): Promise<any> => {

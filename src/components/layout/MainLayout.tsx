@@ -14,6 +14,7 @@ import { useNavigate, useLocation, Outlet } from 'react-router-dom';
 import { useWebSocket } from '../../hooks/useWebSocket';
 import { useSettings } from '../../contexts/SettingContext';
 import apiClient from '../../services/apiClient';
+import { useAuth } from '../../contexts/AuthContext';
 
 const { Header, Sider, Content } = Layout;
 
@@ -22,6 +23,7 @@ const MainLayout: React.FC = () => {
   const navigate = useNavigate();
   const location = useLocation();
   const { settings } = useSettings();
+  const { user, clearSession } = useAuth();
   const factoryName = settings['FACTORY_NAME'] || 'SmartMES Factory';
   const systemTitle = settings['SYSTEM_TITLE'] || 'SmartMES';
   const shortTitle = settings['SYSTEM_SHORT_TITLE'] || 'MES';
@@ -33,8 +35,8 @@ const MainLayout: React.FC = () => {
   } = theme.useToken();
 
   // LẤY THÔNG TIN TỪ LOCAL STORAGE (Người dùng vừa đăng nhập)
-  const fullName = localStorage.getItem('fullName') || 'Khách';
-  const role = localStorage.getItem('role') || 'UNKNOWN';
+  const fullName = user?.fullName || 'Khách';
+  const role = user?.role || 'UNKNOWN';
 
   // Dịch Role code ra tiếng Việt
   const getRoleName = (roleCode: string) => {
@@ -53,7 +55,7 @@ const MainLayout: React.FC = () => {
     } catch {
       // Không block luồng logout nếu API logout bị lỗi mạng.
     } finally {
-      localStorage.clear(); // Xóa sạch Token và Thông tin
+      clearSession();
       window.location.href = '/login';   // Đá về trang đăng nhập
     }
   };

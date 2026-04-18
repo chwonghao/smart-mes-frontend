@@ -1,7 +1,9 @@
 import React, { useState } from 'react';
 import { Form, Input, Button, Card, Typography, message } from 'antd';
 import { UserOutlined, LockOutlined } from '@ant-design/icons';
+import { useNavigate } from 'react-router-dom';
 import apiClient from '../../services/apiClient';
+import { useAuth } from '../../contexts/AuthContext';
 
 const { Title, Text } = Typography;
 
@@ -12,22 +14,26 @@ interface LoginResponse {
 
 const LoginPage: React.FC = () => {
   const [loading, setLoading] = useState(false);
+  const { setSession } = useAuth();
+  const navigate = useNavigate();
 
   const onFinish = async (values: any) => {
     setLoading(true);
     try {
-      const data = await apiClient.post<LoginResponse>('/auth/login', values);
-      
-      // Lưu user info vào localStorage (không lưu token - sử dụng HttpOnly Cookie thay thế)
-      // Backend sẽ tự động gửi cookie trong các request tiếp theo
-      localStorage.setItem('fullName', data.fullName);
-      localStorage.setItem('role', data.role);
-      
-      message.success(`Chào mừng ${data.fullName} trở lại!`);
-      if (data.role === 'ROLE_WORKER') {
-        window.location.href = '/mobile/scan';
+      const loginResponse = await apiClient.post<LoginResponse>('/auth/login', values);
+
+      setSession({
+        username: values.username,
+        fullName: loginResponse.fullName,
+        role: loginResponse.role,
+        tenantId: '',
+      });
+
+      message.success(`Chào mừng ${loginResponse.fullName} trở lại!`);
+      if (loginResponse.role === 'ROLE_WORKER') {
+        navigate('/mobile/scan', { replace: true });
       } else {
-        window.location.href = '/';
+        navigate('/', { replace: true });
       }
     } catch (error) {
       message.error('Sai tài khoản hoặc mật khẩu!');

@@ -1,5 +1,6 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import { getSystemSettings } from '../services/setting.service';
+import { useAuth } from './AuthContext';
 
 interface SettingContextType {
   settings: Record<string, string>;
@@ -10,11 +11,12 @@ const SettingContext = createContext<SettingContextType>({ settings: {}, refresh
 
 export const SettingProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [settings, setSettings] = useState<Record<string, string>>({});
+  const { isAuthenticated, isLoading } = useAuth();
 
   const refreshSettings = async () => {
     try {
-      // Kiểm tra user đã đăng nhập bằng role (token được lưu ở HttpOnly cookie)
-      if (!localStorage.getItem('role')) {
+      // Chỉ tải settings khi session xác thực đã sẵn sàng
+      if (!isAuthenticated) {
         setSettings({});
         return;
       }
@@ -31,7 +33,11 @@ export const SettingProvider: React.FC<{ children: React.ReactNode }> = ({ child
   };
 
   // Tải cấu hình ngay khi bọc Provider
-  useEffect(() => { refreshSettings(); }, []);
+  useEffect(() => {
+    if (!isLoading) {
+      void refreshSettings();
+    }
+  }, [isLoading, isAuthenticated]);
 
   return (
     <SettingContext.Provider value={{ settings, refreshSettings }}>

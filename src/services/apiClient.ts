@@ -12,8 +12,6 @@ let refreshPromise: Promise<void> | null = null;
 
 const clearClientAuthState = () => {
   localStorage.removeItem('token');
-  localStorage.removeItem('fullName');
-  localStorage.removeItem('role');
 };
 
 const isAuthEndpoint = (url?: string) => {

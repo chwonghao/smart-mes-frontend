@@ -16,11 +16,17 @@ import UserManagement from '../pages/System/UserManagement';
 import ProtectedRoute from '../components/ProtectedRoute';
 import SettingsPage from '../pages/System/SettingsPage';
 import WorkerScanner from '../pages/Mobile/WorkerScanner';
+import { useAuth } from '../contexts/AuthContext';
 
 const NotFound = () => <div className="p-8 text-2xl font-bold text-red-600">❌ 404 - Không tìm thấy trang!</div>;
 
 const LoginRoute = () => {
-  const role = localStorage.getItem('role');
+  const { user, isLoading } = useAuth();
+  const role = user?.role;
+
+  if (isLoading) {
+    return null;
+  }
 
   if (!role) {
     return <LoginPage />;
@@ -34,7 +40,12 @@ const LoginRoute = () => {
 };
 
 const RootFallback = () => {
-  const role = localStorage.getItem('role');
+  const { user, isLoading } = useAuth();
+  const role = user?.role;
+
+  if (isLoading) {
+    return null;
+  }
 
   if (!role) {
     return <Navigate replace to="/login" />;

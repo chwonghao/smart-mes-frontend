@@ -38,7 +38,7 @@ Public routes:
 - `/login` -> `LoginPage`
 
 Mobile isolated route (outside main layout):
-- `/mobile/scan` -> `WorkerScanner` (requires token)
+- `/mobile/scan` -> `WorkerScanner` (requires authenticated worker role)
 
 Protected app shell:
 - `/` -> `MainLayout` + nested pages
@@ -58,8 +58,8 @@ Nested protected routes under `/`:
 - `*` -> inline `NotFound`
 
 Access control behavior:
-- Token is read from `localStorage`.
-- Role is read from `localStorage` and enforced in `ProtectedRoute`.
+- Access/refresh token are stored as HttpOnly cookies (not readable from JS).
+- Role display/routing hint is read from `localStorage` and enforced in `ProtectedRoute`.
 - `ROLE_WORKER` is forced to mobile flow (`/mobile/scan`) for non-mobile paths.
 
 ## 4) State Management & Data Flow
@@ -89,9 +89,13 @@ API base and transport:
 - Vite dev proxy forwards `/api` and `/ws-mes` to backend localhost.
 
 Authentication:
-- Request interceptor injects `Authorization: Bearer <token>` from `localStorage`.
-- Response interceptor handles `401`: clears auth data and hard-redirects to `/login`.
-- Login stores `token`, `fullName`, `role` in `localStorage`.
+- Axios is configured with `withCredentials: true`, so HttpOnly cookies are sent automatically.
+- Response interceptor handles `401` with refresh flow:
+  - If failed request is not an auth endpoint, call `POST /auth/refresh` once.
+  - On refresh success, retry original request automatically.
+  - On refresh failure, clear client auth state and redirect to `/login`.
+- Login stores only user presentation metadata (`fullName`, `role`) in `localStorage`.
+- Logout in `MainLayout` calls `POST /auth/logout` before clearing local state.
 
 Response/error handling pattern:
 - Interceptor returns `response.data` directly.
@@ -125,7 +129,8 @@ Notes on `components/common`:
 ## Backend Interaction Summary (for AI context)
 
 - Frontend follows a service-driven data access model: pages do not call `fetch` directly; they use service functions built on one Axios client.
-- Auth is token-in-localStorage and fully client-enforced for route gating + header injection.
+- Auth transport uses HttpOnly cookie session (access + refresh), with automatic refresh + request retry in Axios interceptor.
+- UI role is still localStorage-backed and used for route gating/presentation.
 - Realtime is event-triggered refresh (subscribe -> event -> refetch) rather than normalized client cache updates.
 - Data contracts are partially inconsistent across pages (`res` vs `res.data`), so defensive parsing is common.
 - Business-critical flows coupled to backend:
@@ -138,7 +143,8 @@ Notes on `components/common`:
 
 ## Known Gaps / Technical Notes
 
-- Login redirect sends non-worker users to `/dashboard`, while router defines dashboard at `/` (index route under main layout). This is a potential navigation mismatch.
+- Login redirect currently routes non-worker users to `/` (aligned with dashboard index route), but route guard state can still drift if `localStorage.role` is stale.
 - Two guard patterns exist (`PrivateRoute` inside routing file and shared `ProtectedRoute` component), which may create duplicated auth logic.
 - Service response handling is not fully normalized yet (`res` vs `res.data` defensive code appears in multiple pages).
 - `RoutingList.tsx` appears to be legacy/mock page and is not wired into current route map (active route uses `RoutingManagement.tsx`).
+- Route guard still depends on `localStorage.role`; there is no bootstrap `/me` verification step to re-hydrate role from backend after hard refresh.

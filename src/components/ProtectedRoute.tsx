@@ -1,5 +1,6 @@
 import type { JSX } from 'react';
 import { Navigate, useLocation } from 'react-router-dom';
+import { useAuth } from '../contexts/AuthContext';
 
 interface Props {
   children: JSX.Element;
@@ -9,9 +10,14 @@ interface Props {
 
 const ProtectedRoute = ({ children, requiredRole, allowWorkerOnly = false }: Props) => {
   const location = useLocation();
-  const role = localStorage.getItem('role');
+  const { user, isLoading, isAuthenticated } = useAuth();
+  const role = user?.role;
 
-  if (!role) {
+  if (isLoading) {
+    return null;
+  }
+
+  if (!isAuthenticated || !role) {
     return <Navigate replace to="/login" state={{ from: location }} />;
   }
 
