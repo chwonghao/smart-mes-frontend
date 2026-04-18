@@ -1,12 +1,15 @@
 import React, { useEffect, useState } from 'react';
-import { Table, Button, Card, message, Modal, Form, InputNumber, Select, Input, Tag, Segmented } from 'antd';
+import { Table, Button, Card, message, Drawer, Form, InputNumber, Select, Input, Tag, Segmented, Grid } from 'antd';
 import { PlusOutlined, NodeIndexOutlined } from '@ant-design/icons';
 import { createRouting, getItems, getRoutingsByItem, getWorkCenters } from '../../services/master-data.service';
 import RoutingVisualBuilder from '../../components/master-data/RoutingVisualBuilder';
 
 type ViewMode = 'TABLE' | 'VISUAL';
+const { useBreakpoint } = Grid;
 
 const RoutingManagement: React.FC = () => {
+  const screens = useBreakpoint();
+  const isMobile = !screens.md;
   const [items, setItems] = useState<any[]>([]);
   const [workCenters, setWorkCenters] = useState<any[]>([]);
   const [selectedItemId, setSelectedItemId] = useState<number | undefined>();
@@ -132,7 +135,16 @@ const RoutingManagement: React.FC = () => {
               Thêm Công đoạn mới
             </Button>
           </div>
-          <Table columns={columns} dataSource={routings} rowKey="id" loading={loading} pagination={false} bordered />
+          <Table
+            columns={columns}
+            dataSource={routings}
+            rowKey="id"
+            loading={loading}
+            pagination={false}
+            bordered
+            sticky
+            scroll={{ x: 'max-content', y: 520 }}
+          />
         </>
       )}
 
@@ -141,11 +153,13 @@ const RoutingManagement: React.FC = () => {
       )}
 
       {/* POPUP THÊM CÔNG ĐOẠN */}
-      <Modal
+      <Drawer
         title="Thêm Công Đoạn Sản Xuất"
         open={isModalOpen}
-        onCancel={() => setIsModalOpen(false)}
-        onOk={() => form.submit()}
+        width={isMobile ? '96vw' : 720}
+        onClose={() => setIsModalOpen(false)}
+        extra={<Button type="primary" onClick={() => form.submit()}>Lưu</Button>}
+        destroyOnHidden
       >
         <Form form={form} layout="vertical" onFinish={handleAddRouting}>
           
@@ -170,7 +184,7 @@ const RoutingManagement: React.FC = () => {
           </Form.Item>
 
         </Form>
-      </Modal>
+      </Drawer>
     </Card>
   );
 };

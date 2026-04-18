@@ -1,9 +1,13 @@
 import React, { useEffect, useState } from 'react';
-import { Table, Button, Card, message, Modal, Form, InputNumber, Select } from 'antd';
+import { Table, Button, Card, message, Drawer, Form, InputNumber, Select, Grid } from 'antd';
 import { PlusOutlined, ApartmentOutlined } from '@ant-design/icons';
 import { getItems, getBomsByItem, createBom } from '../../services/master-data.service';
 
+const { useBreakpoint } = Grid;
+
 const BOMManagement: React.FC = () => {
+  const screens = useBreakpoint();
+  const isMobile = !screens.md;
   const [items, setItems] = useState<any[]>([]);
   const [selectedParentId, setSelectedParentId] = useState<number | undefined>();
   const [boms, setBoms] = useState<any[]>([]);
@@ -99,11 +103,27 @@ const BOMManagement: React.FC = () => {
           <div className="mb-4">
             <Button type="primary" icon={<PlusOutlined />} onClick={() => setIsModalOpen(true)}>Thêm Vật tư vào Công thức</Button>
           </div>
-          <Table columns={columns} dataSource={boms} rowKey="id" loading={loading} pagination={false} bordered />
+          <Table
+            columns={columns}
+            dataSource={boms}
+            rowKey="id"
+            loading={loading}
+            pagination={false}
+            bordered
+            sticky
+            scroll={{ x: 'max-content', y: 520 }}
+          />
         </>
       )}
 
-      <Modal title="Thêm Thành Phần Vật Tư" open={isModalOpen} onCancel={() => setIsModalOpen(false)} onOk={() => form.submit()}>
+      <Drawer
+        title="Thêm Thành Phần Vật Tư"
+        open={isModalOpen}
+        width={isMobile ? '96vw' : 720}
+        onClose={() => setIsModalOpen(false)}
+        extra={<Button type="primary" onClick={() => form.submit()}>Lưu</Button>}
+        destroyOnHidden
+      >
         <Form form={form} layout="vertical" onFinish={handleAddBom}>
           <Form.Item name="childItemId" label="Chọn Vật tư con" rules={[{ required: true }]}>
             <Select showSearch optionFilterProp="children">
@@ -119,7 +139,7 @@ const BOMManagement: React.FC = () => {
             <InputNumber min={0} max={1} step={0.01} className="w-full" />
           </Form.Item>
         </Form>
-      </Modal>
+      </Drawer>
     </Card>
   );
 };

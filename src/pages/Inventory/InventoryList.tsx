@@ -137,7 +137,14 @@ const InventoryList: React.FC = () => {
       title={<span className="text-xl font-bold">Quản lý Tồn Kho</span>}
       extra={<Button icon={<SyncOutlined />} onClick={fetchData} loading={loading}>Làm mới</Button>}
     >
-      <Table columns={columns} dataSource={data} rowKey="id" loading={loading} />
+      <Table
+        columns={columns}
+        dataSource={data}
+        rowKey="id"
+        loading={loading}
+        sticky
+        scroll={{ x: 'max-content', y: 600 }}
+      />
 
       <Modal 
         title={`Điều chỉnh kho: ${getModalItemName()}`} 

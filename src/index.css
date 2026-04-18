@@ -4,4 +4,15 @@
 body {
   background-color: #f3f4f6; 
   margin: 0;
+  transition: background-color 0.25s ease;
+}
+
+.app-light {
+  background-color: #f3f4f6;
+  color: #0f172a;
+}
+
+.app-dark {
+  background-color: #0f172a;
+  color: #e2e8f0;
 }

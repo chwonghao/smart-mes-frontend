@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { Card, Button, Form, InputNumber, Input, Select, message, Typography, Divider, Tag, Progress } from 'antd';
+import { Card, Button, Form, Input, Select, message, Typography, Divider, Tag, Progress, Space } from 'antd';
 import { QrcodeOutlined, LeftOutlined, CheckOutlined } from '@ant-design/icons';
 import { Html5QrcodeScanner } from 'html5-qrcode';
 import { reportProgress } from '../../services/production.service';
@@ -15,6 +15,61 @@ const WorkerScanner: React.FC = () => {
   const [workCenters, setWorkCenters] = useState<any[]>([]);
   const [loading, setLoading] = useState(false);
   const [form] = Form.useForm();
+
+  const playFeedback = (status: 'success' | 'error') => {
+    if (typeof navigator !== 'undefined' && navigator.vibrate) {
+      navigator.vibrate(status === 'success' ? [80, 40, 80] : [200]);
+    }
+
+    try {
+      const AudioContextClass = window.AudioContext || (window as any).webkitAudioContext;
+      const audioContext = new AudioContextClass();
+      const oscillator = audioContext.createOscillator();
+      const gainNode = audioContext.createGain();
+
+      oscillator.type = 'sine';
+      oscillator.frequency.value = status === 'success' ? 880 : 220;
+      gainNode.gain.value = 0.08;
+
+      oscillator.connect(gainNode);
+      gainNode.connect(audioContext.destination);
+      oscillator.start();
+      oscillator.stop(audioContext.currentTime + 0.1);
+    } catch {
+      // Bỏ qua nếu thiết bị không hỗ trợ audio context.
+    }
+  };
+
+  const getQtyValue = (field: 'okQty' | 'ngQty') => Number(form.getFieldValue(field) || 0);
+
+  const adjustQty = (field: 'okQty' | 'ngQty', delta: number) => {
+    const nextValue = Math.max(0, getQtyValue(field) + delta);
+    form.setFieldValue(field, nextValue);
+  };
+
+  const renderQtyPad = (field: 'okQty' | 'ngQty', tone: 'pass' | 'fail') => {
+    const isPass = tone === 'pass';
+    const value = getQtyValue(field);
+
+    return (
+      <div className={`rounded-xl border-2 p-3 ${isPass ? 'border-green-600 bg-green-50' : 'border-red-600 bg-red-50'}`}>
+        <div className={`mb-2 text-sm font-bold ${isPass ? 'text-green-700' : 'text-red-700'}`}>
+          {isPass ? 'SẢN LƯỢNG ĐẠT (PASS)' : 'HÀNG LỖI (FAIL/NG)'}
+        </div>
+
+        <div className={`mb-3 h-16 rounded-lg border text-center text-3xl font-black leading-[3.8rem] ${isPass ? 'border-green-700 text-green-700 bg-white' : 'border-red-700 text-red-700 bg-white'}`}>
+          {value}
+        </div>
+
+        <div className="grid grid-cols-4 gap-2">
+          <Button className="h-12 text-lg font-bold" onClick={() => adjustQty(field, -1)}>-</Button>
+          <Button className="h-12 text-lg font-bold" onClick={() => adjustQty(field, 1)}>+</Button>
+          <Button className="h-12 text-base font-bold" onClick={() => adjustQty(field, 10)}>+10</Button>
+          <Button className="h-12 text-base font-bold" onClick={() => adjustQty(field, 50)}>+50</Button>
+        </div>
+      </div>
+    );
+  };
 
   // Lấy danh sách máy móc để công nhân chọn họ đang đứng ở máy nào
   useEffect(() => {
@@ -50,13 +105,16 @@ const WorkerScanner: React.FC = () => {
               setScanData(data);
               setScanning(false);
               scanner?.clear(); // Tắt camera khi quét thành công
+              playFeedback('success');
               message.success(`Đã nhận diện Lệnh: ${data.orderNumber}`);
               // Fetch chi tiết work order ngay khi quét thành công
               fetchWorkOrderDetail(data.id);
             } else {
+              playFeedback('error');
               message.error("Mã QR không hợp lệ!");
             }
           } catch (e) {
+            playFeedback('error');
             message.error("Lỗi đọc dữ liệu QR!");
           }
         },
@@ -85,6 +143,7 @@ const WorkerScanner: React.FC = () => {
         values.defectReason, 
         values.operatorName
       );
+      playFeedback('success');
       message.success("✅ ĐÃ GỬI BÁO CÁO THÀNH CÔNG!");
       
       // 🔑 QUAN TRỌNG: Refetch chi tiết work order để cập nhật progress trên UI
@@ -93,6 +152,7 @@ const WorkerScanner: React.FC = () => {
       form.resetFields();
       // Không reset scanData ngay - để hiển thị progress mới được cập nhật
     } catch (error: any) {
+      playFeedback('error');
       message.error(error.response?.data?.message || "Gửi báo cáo thất bại!");
     } finally {
       setLoading(false);
@@ -104,6 +164,7 @@ const WorkerScanner: React.FC = () => {
     setScanData(null);
     setWorkOrderDetail(null);
     form.resetFields();
+    form.setFieldsValue({ okQty: 0, ngQty: 0 });
   };
 
   // Tính toán progress (%) từ work order detail
@@ -181,11 +242,11 @@ const WorkerScanner: React.FC = () => {
           
           <Form form={form} layout="vertical" onFinish={handleReport} size="large">
             <Form.Item name="operatorName" label={<span className="font-bold">Người thao tác</span>} rules={[{required: true, message: 'Bắt buộc!'}]}>
-              <Input placeholder="Nhập tên của bạn" className="rounded-lg" />
+              <Input placeholder="Nhập tên của bạn" className="rounded-lg h-12 text-base" />
             </Form.Item>
             
             <Form.Item name="workCenterId" label={<span className="font-bold">Đang sản xuất tại máy</span>} rules={[{required: true, message: 'Bắt buộc!'}]}>
-              <Select placeholder="Chọn máy..." className="rounded-lg">
+              <Select placeholder="Chọn máy..." className="rounded-lg" size="large">
                 {workCenters.map(wc => (
                   <Select.Option key={wc.id} value={wc.id} disabled={wc.currentStatus === 'DOWN'}>
                     {wc.name} {wc.currentStatus === 'DOWN' ? '(Hỏng)' : ''}
@@ -194,13 +255,20 @@ const WorkerScanner: React.FC = () => {
               </Select>
             </Form.Item>
 
-            <div className="flex gap-4">
-              <Form.Item name="okQty" label={<span className="font-bold text-green-600">Sản lượng ĐẠT</span>} className="flex-1" rules={[{required: true}]} initialValue={0}>
-                <InputNumber min={0} className="w-full text-center text-lg rounded-lg border-green-300" />
+            <Space direction="vertical" size={12} className="w-full">
+              <Form.Item name="okQty" initialValue={0} hidden>
+                <Input />
               </Form.Item>
-              <Form.Item name="ngQty" label={<span className="font-bold text-red-500">Hàng LỖI (NG)</span>} className="flex-1" rules={[{required: true}]} initialValue={0}>
-                <InputNumber min={0} className="w-full text-center text-lg rounded-lg border-red-300" />
+              <Form.Item name="ngQty" initialValue={0} hidden>
+                <Input />
               </Form.Item>
+
+              {renderQtyPad('okQty', 'pass')}
+              {renderQtyPad('ngQty', 'fail')}
+            </Space>
+
+            <div className="mt-2 rounded-md border border-amber-300 bg-amber-50 p-3 text-amber-700 text-sm font-semibold">
+              Chế độ tap nhanh: dùng các nút +/-/+10/+50, không cần gõ bàn phím khi nhập sản lượng.
             </div>
 
             <Form.Item noStyle shouldUpdate={(prev, curr) => prev.ngQty !== curr.ngQty}>
@@ -216,7 +284,7 @@ const WorkerScanner: React.FC = () => {
               htmlType="submit" 
               icon={<CheckOutlined />} 
               loading={loading}
-              className="w-full h-14 text-lg font-bold rounded-xl mt-2 bg-blue-600 hover:bg-blue-700"
+              className="w-full h-16 text-xl font-black rounded-xl mt-3 bg-blue-700 hover:bg-blue-800"
             >
               GỬI BÁO CÁO
             </Button>

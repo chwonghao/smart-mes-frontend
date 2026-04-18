@@ -22,7 +22,8 @@
     "react-router-dom": "^7.13.1",
     "recharts": "^3.8.0",
     "sockjs": "^0.3.24",
-    "sockjs-client": "^1.6.1"
+    "sockjs-client": "^1.6.1",
+    "xlsx": "^0.18.5"
   },
   "devDependencies": {
     "@eslint/js": "^9.39.1",

@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Layout, Menu, Button, theme, Badge, Popover, List, Typography, Dropdown, Drawer, Grid } from 'antd';
+import { Layout, Menu, Button, theme, Badge, Popover, List, Typography, Dropdown, Drawer, Grid, Breadcrumb } from 'antd';
 import {
   MenuFoldOutlined,
   MenuUnfoldOutlined,
@@ -8,13 +8,16 @@ import {
   BuildOutlined,
   BellOutlined,
   SettingOutlined,
-  LogoutOutlined
+  LogoutOutlined,
+  MoonOutlined,
+  SunOutlined
 } from '@ant-design/icons';
 import { useNavigate, useLocation, Outlet } from 'react-router-dom';
 import { useWebSocket } from '../../hooks/useWebSocket';
 import { useSettings } from '../../contexts/SettingContext';
 import apiClient from '../../services/apiClient';
 import { useAuth } from '../../contexts/AuthContext';
+import { useThemeMode } from '../../contexts/ThemeContext';
 
 const { Header, Sider, Content } = Layout;
 const { useBreakpoint } = Grid;
@@ -26,6 +29,7 @@ const MainLayout: React.FC = () => {
   const location = useLocation();
   const { settings } = useSettings();
   const { user, clearSession } = useAuth();
+  const { isDarkMode, toggleTheme } = useThemeMode();
   const factoryName = settings['FACTORY_NAME'] || 'SmartMES Factory';
   const systemTitle = settings['SYSTEM_TITLE'] || 'SmartMES';
   const shortTitle = settings['SYSTEM_SHORT_TITLE'] || 'MES';
@@ -144,6 +148,32 @@ const MainLayout: React.FC = () => {
     }
   };
 
+  const breadcrumbNameMap: Record<string, string> = {
+    '/': 'Trang chủ',
+    '/master-data': 'Dữ liệu gốc',
+    '/master-data/work-centers': 'Máy móc & Khu vực',
+    '/master-data/items': 'Sản phẩm & Vật tư',
+    '/master-data/boms': 'Quản lý BOM',
+    '/master-data/routings': 'Quản lý Routing',
+    '/master-data/workers': 'Danh sách Nhân sự',
+    '/production': 'Quản lý Sản xuất',
+    '/production/work-orders': 'Lệnh sản xuất',
+    '/inventory': 'Kho nguyên liệu',
+    '/system': 'Hệ thống',
+    '/system/logs': 'Nhật ký hệ thống',
+    '/system/users': 'Quản lý tài khoản',
+    '/system/settings': 'Cài đặt chung',
+  };
+
+  const pathSnippets = location.pathname.split('/').filter((i) => i);
+  const breadcrumbItems = [
+    { title: 'Trang chủ' },
+    ...pathSnippets.map((_, index) => {
+      const url = `/${pathSnippets.slice(0, index + 1).join('/')}`;
+      return { title: breadcrumbNameMap[url] || pathSnippets[index] };
+    }),
+  ];
+
   // MENU XỔ XUỐNG CỦA AVATAR
   const userMenu = [
     {
@@ -231,7 +261,15 @@ const MainLayout: React.FC = () => {
             <span className={`font-semibold text-gray-700 ${isTablet ? 'text-sm' : 'text-base'}`}>{systemTitle}</span>
           </div>
 
-          <div className={`flex items-center ${isMobile ? 'gap-2' : 'gap-6'}`}>
+          <div className={`flex items-center ${isMobile ? 'gap-2' : 'gap-4'}`}>
+            <Button
+              type="text"
+              shape="circle"
+              onClick={toggleTheme}
+              icon={isDarkMode ? <SunOutlined className="text-amber-400" /> : <MoonOutlined className="text-slate-600" />}
+              aria-label="toggle-theme"
+            />
+
             <Popover
               content={notificationContent}
               trigger="click"
@@ -274,6 +312,10 @@ const MainLayout: React.FC = () => {
             overflow: 'initial'
           }}
         >
+          <div className="mb-3">
+            <Breadcrumb items={breadcrumbItems} />
+          </div>
+
           {/* ĐÂY LÀ LỖ THOÁT ĐỂ REACT ROUTER BƠM CÁC TRANG CON VÀO */}
           <Outlet />
         </Content>

@@ -1,6 +1,7 @@
+import React from 'react';
 import { useEffect, useState } from 'react';
 import { Client } from '@stomp/stompjs';
-import { message } from 'antd';
+import { Button, message, notification } from 'antd';
 import SockJS from 'sockjs-client';
 
 export const useWebSocket = (topic: string) => {
@@ -26,13 +27,33 @@ export const useWebSocket = (topic: string) => {
       // Đăng ký nhận tin từ topic (ví dụ: /topic/alerts)
       client.subscribe(topic, (msg) => {
         const newAlert = JSON.parse(msg.body);
+        const isMachineDown = newAlert?.type === 'MACHINE_DOWN' || newAlert?.alertType === 'MACHINE_DOWN';
         
-        // Hiển thị thông báo Toast nhanh trên màn hình
-        message.warning({
-          content: newAlert.message || 'Có thông báo mới!',
-          duration: 5,
-          style: { marginTop: '10vh' },
-        });
+        if (isMachineDown) {
+          const notificationKey = `machine-down-${newAlert?.id ?? Date.now()}`;
+          notification.error({
+            key: notificationKey,
+            message: 'SỰ CỐ MÁY NGHIÊM TRỌNG',
+            description: newAlert.message || 'Một máy vừa chuyển trạng thái DOWN.',
+            placement: 'bottomRight',
+            duration: 0,
+            btn: React.createElement(
+              Button,
+              {
+                size: 'small',
+                type: 'primary',
+                onClick: () => notification.destroy(notificationKey),
+              },
+              'Đã đọc'
+            ),
+          });
+        } else {
+          message.warning({
+            content: newAlert.message || 'Có thông báo mới!',
+            duration: 5,
+            style: { marginTop: '10vh' },
+          });
+        }
 
         // Cập nhật vào danh sách thông báo trên chuông
         setNotifications((prev) => [newAlert, ...prev]);
@@ -47,11 +68,9 @@ export const useWebSocket = (topic: string) => {
     client.activate();
 
     return () => {  
-      setTimeout(() => {
-        if (client.active) {
-          client.deactivate();
-        }
-      }, 100);
+      if (client.active) {
+        void client.deactivate();
+      }
     };
   }, [topic]);
 

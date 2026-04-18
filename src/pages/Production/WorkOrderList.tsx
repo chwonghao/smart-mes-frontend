@@ -1,9 +1,10 @@
 import React, { useEffect, useState } from 'react';
 import { Table, Tag, Button, Card, Progress, Space, message, Modal, Form, Select, InputNumber, DatePicker, Input, QRCode, Grid } from 'antd';
 import dayjs from 'dayjs';
-import { PlusOutlined, CheckCircleOutlined, HistoryOutlined, QrcodeOutlined, PrinterOutlined } from '@ant-design/icons';
+import { PlusOutlined, CheckCircleOutlined, HistoryOutlined, QrcodeOutlined, PrinterOutlined, DownloadOutlined } from '@ant-design/icons';
 import SockJS from 'sockjs-client';
 import { Stomp } from '@stomp/stompjs';
+import * as XLSX from 'xlsx';
 
 import type { WorkOrder } from '../../types/production.type';
 import type { WorkCenter } from '../../types/master-data.type';
@@ -108,6 +109,34 @@ const WorkOrderList: React.FC = () => {
     }
   };
 
+  const handleExportExcel = () => {
+    if (!orders || orders.length === 0) {
+      message.warning("Không có dữ liệu để xuất Excel!");
+      return;
+    }
+
+    // 1. Chuẩn bị dữ liệu (Format lại tên cột và giá trị cho đẹp)
+    const exportData = orders.map((order: any) => ({
+      'Mã Lệnh': order.orderNumber,
+      'Sản Phẩm': order.itemName,
+      'Máy Sản Xuất': order.workCenterName || 'Chưa phân máy',
+      'Mục Tiêu': order.plannedQuantity,
+      'Thực Tế': order.actualQuantity || 0,
+      'Tỷ lệ (%)': order.plannedQuantity > 0 ? Math.round(((order.actualQuantity || 0) / order.plannedQuantity) * 100) + '%' : '0%',
+      'Trạng Thái': order.status,
+      'Ngày Tạo': order.createdAt ? dayjs(order.createdAt).format('DD/MM/YYYY HH:mm') : '',
+      'Bắt đầu Dự kiến': order.plannedStartDate ? dayjs(order.plannedStartDate).format('DD/MM/YYYY HH:mm') : ''
+    }));
+
+    // 2. Tạo Worksheet và Workbook
+    const worksheet = XLSX.utils.json_to_sheet(exportData);
+    const workbook = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(workbook, worksheet, "DS_LenhSanXuat");
+
+    // 3. Tải file xuống
+    XLSX.writeFile(workbook, `BaoCao_LenhSanXuat_${dayjs().format('YYYYMMDD_HHmm')}.xlsx`);
+  };
+
   const fetchLogs = async (orderId: number, orderNumber: string) => {
     setHistoryModal({ open: true, orderNumber });
     setLoadingLogs(true);
@@ -144,7 +173,15 @@ const WorkOrderList: React.FC = () => {
       title: 'Trạng thái', 
       dataIndex: 'status', 
       render: (status: string) => (
-        <Tag color={status === 'IN_PROGRESS' ? 'blue' : status === 'COMPLETED' ? 'green' : 'default'}>
+        <Tag
+          color={
+            status === 'DRAFT' ? 'default' :
+            status === 'IN_PROGRESS' ? 'processing' :
+            status === 'COMPLETED' ? 'success' :
+            status === 'CANCELLED' ? 'error' :
+            'default'
+          }
+        >
           {status}
         </Tag>
       )
@@ -213,12 +250,24 @@ const WorkOrderList: React.FC = () => {
     <Card 
       title={<span className="text-xl font-bold">Quản lý Lệnh sản xuất</span>}
       extra={
-        <Button type="primary" icon={<PlusOutlined />} onClick={() => setIsModalOpen(true)} size={isMobile ? 'small' : 'middle'}>
-          Tạo lệnh mới
-        </Button>
+        <Space wrap>
+          <Button icon={<DownloadOutlined />} onClick={handleExportExcel} size={isMobile ? 'small' : 'middle'} className="text-green-600 border-green-600 hover:bg-green-50">
+            Xuất Excel
+          </Button>
+          <Button type="primary" icon={<PlusOutlined />} onClick={() => setIsModalOpen(true)} size={isMobile ? 'small' : 'middle'}>
+            Tạo lệnh mới
+          </Button>
+        </Space>
       }
     >
-      <Table dataSource={orders} columns={columns} rowKey="id" loading={loading} scroll={{ x: 1100 }} />
+      <Table
+        dataSource={orders}
+        columns={columns}
+        rowKey="id"
+        loading={loading}
+        sticky
+        scroll={{ x: 'max-content', y: 600 }}
+      />
 
       {/* POPUP 1: TẠO LỆNH MỚI */}
       <Modal title="Tạo Lệnh Sản Xuất Mới" open={isModalOpen} onCancel={() => setIsModalOpen(false)} onOk={() => form.submit()} width={isMobile ? '94vw' : 620}>
