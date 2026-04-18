@@ -1,8 +1,9 @@
 import React, { useEffect, useState } from 'react';
 import { Table, Tag, Button, Card, Space, message, Modal, Form, Input, Select } from 'antd';
-import { PlusOutlined, ReloadOutlined, UserOutlined } from '@ant-design/icons';
+import { PlusOutlined, ReloadOutlined, UserOutlined, ImportOutlined } from '@ant-design/icons';
 // IMPORT THÊM 2 HÀM GỌI API THẬT
 import { getWorkers, createWorker } from '../../services/master-data.service';
+import ExcelImportModal from '../../components/ExcelImportModal';
 
 interface Worker {
   id: number;
@@ -17,6 +18,7 @@ const WorkerList: React.FC = () => {
   const [workers, setWorkers] = useState<Worker[]>([]);
   const [loading, setLoading] = useState(false);
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const [isImportModalOpen, setIsImportModalOpen] = useState(false);
   const [form] = Form.useForm();
 
   // HÀM LẤY DỮ LIỆU TỪ DATABASE (Đã xóa Mock Data)
@@ -29,6 +31,28 @@ const WorkerList: React.FC = () => {
       message.error("Lỗi tải danh sách nhân sự từ máy chủ!");
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleImportWorkers = async (data: any[]) => {
+    try {
+      const workersToImport = data.map((row: any) => ({
+        workerCode: row['Mã NV'] || row['workerCode'] || '',
+        fullName: row['Họ và tên'] || row['fullName'] || '',
+        role: row['Vai trò'] === 'Công nhân' ? 'WORKER' : row['Vai trò'] === 'QC' ? 'QC' : 'LEADER',
+        shift: row['Ca làm việc'] === 'Ca Sáng' ? 'MORNING' : 'NIGHT',
+        status: row['Trạng thái'] === 'Đang làm việc' ? 'ACTIVE' : 'INACTIVE'
+      }));
+
+      const validWorkers = workersToImport.filter(w => w.workerCode && w.fullName);
+      if (validWorkers.length === 0) {
+        throw new Error('Không có dữ liệu hợp lệ để nhập!');
+      }
+
+      await Promise.all(validWorkers.map(w => createWorker(w)));
+      await fetchWorkers();
+    } catch (error: any) {
+      throw new Error(error.message || 'Lỗi nhập dữ liệu từ Excel!');
     }
   };
 
@@ -89,15 +113,23 @@ const WorkerList: React.FC = () => {
 
   return (
     <Card 
-      title={<span className="text-xl font-bold">Danh sách Nhân sự / Công nhân</span>}
+      className="dark:bg-slate-800"
+      title={<span className="text-xl font-bold dark:text-gray-100">Danh sách Nhân sự / Công nhân</span>}
       extra={
         <Space>
+          <Button icon={<ImportOutlined />} onClick={() => setIsImportModalOpen(true)}>Nhập Excel</Button>
           <Button icon={<ReloadOutlined />} onClick={fetchWorkers} loading={loading}>Làm mới</Button>
           <Button type="primary" icon={<PlusOutlined />} onClick={() => setIsModalOpen(true)}>Thêm mới</Button>
         </Space>
       }
     >
-      <Table columns={columns} dataSource={workers} rowKey="id" loading={loading} />
+      <Table 
+        columns={columns} 
+        dataSource={workers} 
+        rowKey="id" 
+        loading={loading}
+        className="dark:bg-slate-700"
+      />
 
       <Modal title="Thêm Nhân sự mới" open={isModalOpen} onCancel={() => setIsModalOpen(false)} onOk={() => form.submit()} destroyOnHidden>
         <Form form={form} layout="vertical" onFinish={handleCreate}>
@@ -128,6 +160,21 @@ const WorkerList: React.FC = () => {
           </Form.Item>
         </Form>
       </Modal>
+
+        <ExcelImportModal
+          open={isImportModalOpen}
+          title="Nhập Nhân sự từ Excel"
+          columns={[
+            { title: 'Mã NV', dataIndex: 'Mã NV', key: 'workerCode' },
+            { title: 'Họ và tên', dataIndex: 'Họ và tên', key: 'fullName' },
+            { title: 'Vai trò', dataIndex: 'Vai trò', key: 'role' },
+            { title: 'Ca làm việc', dataIndex: 'Ca làm việc', key: 'shift' },
+            { title: 'Trạng thái', dataIndex: 'Trạng thái', key: 'status' },
+          ]}
+          requiredFields={['Mã NV', 'Họ và tên']}
+          onImport={handleImportWorkers}
+          onCancel={() => setIsImportModalOpen(false)}
+        />
     </Card>
   );
 };

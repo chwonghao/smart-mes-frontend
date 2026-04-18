@@ -1,13 +1,15 @@
 import React, { useEffect, useState } from 'react';
 import { Table, Tag, Button, Card, Space, message, Modal, Form, Input, Select } from 'antd';
-import { PlusOutlined, ReloadOutlined } from '@ant-design/icons';
+import { PlusOutlined, ReloadOutlined, ImportOutlined } from '@ant-design/icons';
 import { getItems, createItem } from '../../services/master-data.service';
 import type { ItemMaster } from '../../types/master-data.type';
+import ExcelImportModal from '../../components/ExcelImportModal';
 
 const ItemList: React.FC = () => {
   const [items, setItems] = useState<ItemMaster[]>([]);
   const [loading, setLoading] = useState(false);
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const [isImportModalOpen, setIsImportModalOpen] = useState(false);
   const [form] = Form.useForm();
 
   const fetchData = async () => {
@@ -21,12 +23,38 @@ const ItemList: React.FC = () => {
       message.error("Lỗi tải danh sách sản phẩm/vật tư!");
     } finally {
       setLoading(false);
-    }
+    };
   };
 
   useEffect(() => {
     fetchData();
   }, []);
+    const handleImportItems = async (data: any[]) => {
+      try {
+        // Map Excel columns to API format
+        const itemsToImport = data.map((row: any) => ({
+          itemCode: row['Mã SP'] || row['itemCode'] || '',
+          itemName: row['Tên SP'] || row['itemName'] || '',
+          itemType: row['Phân loại'] || row['itemType'] || 'RAW_MATERIAL',
+          unit: row['Đơn vị tính'] || row['unit'] || '',
+          description: row['Ghi chú'] || row['description'] || ''
+        }));
+
+        // Validate data
+        const validItems = itemsToImport.filter(item => item.itemCode && item.itemName);
+        if (validItems.length === 0) {
+          throw new Error('Không có dữ liệu hợp lệ để nhập!');
+        }
+
+        // Call API to import
+        await Promise.all(validItems.map(item => createItem(item)));
+      
+        // Refresh data
+        await fetchData();
+      } catch (error: any) {
+        throw new Error(error.message || 'Lỗi nhập dữ liệu từ Excel!');
+      }
+    };
 
   const handleCreate = async (values: any) => {
     try {
@@ -59,15 +87,23 @@ const ItemList: React.FC = () => {
 
   return (
     <Card 
-      title={<span className="text-xl font-bold">Danh mục Sản phẩm & Vật tư</span>}
+      className="dark:bg-slate-800"
+      title={<span className="text-xl font-bold dark:text-gray-100">Danh mục Sản phẩm & Vật tư</span>}
       extra={
         <Space>
+          <Button icon={<ImportOutlined />} onClick={() => setIsImportModalOpen(true)}>Nhập Excel</Button>
           <Button icon={<ReloadOutlined />} onClick={fetchData} loading={loading}>Làm mới</Button>
           <Button type="primary" icon={<PlusOutlined />} onClick={() => setIsModalOpen(true)}>Thêm mới</Button>
         </Space>
       }
     >
-      <Table columns={columns} dataSource={items} rowKey="id" loading={loading} />
+      <Table 
+        columns={columns} 
+        dataSource={items} 
+        rowKey="id" 
+        loading={loading}
+        className="dark:bg-slate-700"
+      />
 
       <Modal 
         title="Thêm Mới Sản Phẩm / Vật Tư" 
@@ -102,6 +138,21 @@ const ItemList: React.FC = () => {
           </Form.Item>
         </Form>
       </Modal>
+
+        <ExcelImportModal
+          open={isImportModalOpen}
+          title="Nhập Sản phẩm & Vật tư từ Excel"
+          columns={[
+            { title: 'Mã SP', dataIndex: 'Mã SP', key: 'itemCode' },
+            { title: 'Tên SP', dataIndex: 'Tên SP', key: 'itemName' },
+            { title: 'Phân loại', dataIndex: 'Phân loại', key: 'itemType' },
+            { title: 'Đơn vị tính', dataIndex: 'Đơn vị tính', key: 'unit' },
+            { title: 'Ghi chú', dataIndex: 'Ghi chú', key: 'description' },
+          ]}
+          requiredFields={['Mã SP', 'Tên SP']}
+          onImport={handleImportItems}
+          onCancel={() => setIsImportModalOpen(false)}
+        />
     </Card>
   );
 };

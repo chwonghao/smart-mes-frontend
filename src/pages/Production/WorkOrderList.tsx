@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { Table, Tag, Button, Card, Progress, Space, message, Modal, Form, Select, InputNumber, DatePicker, Input, QRCode, Grid } from 'antd';
-import dayjs from 'dayjs';
+import dayjs, { Dayjs } from 'dayjs';
 import { PlusOutlined, CheckCircleOutlined, HistoryOutlined, QrcodeOutlined, PrinterOutlined, DownloadOutlined } from '@ant-design/icons';
 import SockJS from 'sockjs-client';
 import { Stomp } from '@stomp/stompjs';
@@ -11,6 +11,7 @@ import type { WorkCenter } from '../../types/master-data.type';
 import { getWorkOrders, createWorkOrder, reportProgress } from '../../services/production.service';
 import { getWorkCenters, getItems } from '../../services/master-data.service';
 import apiClient from '../../services/apiClient';
+import AdvancedFilterPanel from '../../components/AdvancedFilterPanel';
 
 const { useBreakpoint } = Grid;
 
@@ -35,11 +36,21 @@ const WorkOrderList: React.FC = () => {
 
   const [items, setItems] = useState<any[]>([]);
 
+  // Filter state
+  const [filteredOrders, setFilteredOrders] = useState<WorkOrder[]>([]);
+  const [filters, setFilters] = useState({
+    dateRange: null as [Dayjs, Dayjs] | null,
+    workCenterId: null as string | null,
+    status: null as string[] | null,
+    searchText: null as string | null,
+  });
+
   const fetchData = async () => {
     setLoading(true);
     try {
       const [orderRes, centerRes, itemsRes] = await Promise.all([getWorkOrders(), getWorkCenters(), getItems()]);
       setOrders(orderRes);
+        setFilteredOrders(orderRes);
       setWorkCenters(centerRes);
       setItems(itemsRes);
     } catch (error) {
@@ -75,6 +86,60 @@ const WorkOrderList: React.FC = () => {
       if (stompClient) stompClient.disconnect();
     };
   }, []);
+
+  // Apply filters to orders
+  const applyFilters = (newFilters: typeof filters) => {
+    setFilters(newFilters);
+    
+    let result = orders;
+
+    // Filter by search text
+    if (newFilters.searchText) {
+      result = result.filter(order =>
+        order.orderNumber?.toLowerCase().includes(newFilters.searchText!.toLowerCase())
+      );
+    }
+
+    // Filter by date range
+    if (newFilters.dateRange && newFilters.dateRange[0] && newFilters.dateRange[1]) {
+      const [startDate, endDate] = newFilters.dateRange;
+      result = result.filter(order => {
+        const orderDate = dayjs(order.plannedStartDate);
+        return orderDate.isAfter(startDate.startOf('day')) && orderDate.isBefore(endDate.endOf('day'));
+      });
+    }
+
+    // Filter by work center
+    if (newFilters.workCenterId) {
+      result = result.filter(order =>
+        String(order.workCenterId) === newFilters.workCenterId
+      );
+    }
+
+    // Filter by status
+    if (newFilters.status && newFilters.status.length > 0) {
+      result = result.filter(order =>
+        newFilters.status!.includes(order.status)
+      );
+    }
+
+    setFilteredOrders(result);
+  };
+
+  const handleFilterChange = (newFilters: any) => {
+    applyFilters(newFilters);
+  };
+
+  const handleResetFilters = () => {
+    const emptyFilters = {
+      dateRange: null,
+      workCenterId: null,
+      status: null,
+      searchText: null,
+    };
+    setFilters(emptyFilters);
+    setFilteredOrders(orders);
+  };
 
   const handleCreate = async (values: any) => {
     try {
@@ -248,7 +313,8 @@ const WorkOrderList: React.FC = () => {
 
   return (
     <Card 
-      title={<span className="text-xl font-bold">Quản lý Lệnh sản xuất</span>}
+      className="dark:bg-slate-800"
+      title={<span className="text-xl font-bold dark:text-gray-100">Quản lý Lệnh sản xuất</span>}
       extra={
         <Space wrap>
           <Button icon={<DownloadOutlined />} onClick={handleExportExcel} size={isMobile ? 'small' : 'middle'} className="text-green-600 border-green-600 hover:bg-green-50">
@@ -260,13 +326,19 @@ const WorkOrderList: React.FC = () => {
         </Space>
       }
     >
+      <AdvancedFilterPanel
+        workCenters={workCenters}
+        onFilterChange={handleFilterChange}
+        onReset={handleResetFilters}
+      />
       <Table
-        dataSource={orders}
+        dataSource={filteredOrders}
         columns={columns}
         rowKey="id"
         loading={loading}
         sticky
         scroll={{ x: 'max-content', y: 600 }}
+        className="dark:bg-slate-800"
       />
 
       {/* POPUP 1: TẠO LỆNH MỚI */}

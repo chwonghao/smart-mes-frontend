@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from 'react';
-import { Row, Col, Card, Statistic, message, notification, Spin, Button, Progress, List, Typography, Tag, Badge } from 'antd';
+import { Row, Col, Card, Statistic, message, notification, Button, Progress, List, Typography, Tag, Badge } from 'antd';
+import DashboardSkeleton from '../../components/DashboardSkeleton';
 import { 
   AppstoreOutlined, 
   SyncOutlined, 
@@ -19,8 +20,8 @@ import SockJS from 'sockjs-client';
 import { Stomp } from '@stomp/stompjs';
 import { getWorkCenters } from '../../services/master-data.service';
 import { getWorkOrders } from '../../services/production.service';
-import { useSettings } from '../../contexts/SettingContext';
 
+import { useSettings } from '../../contexts/SettingContext';
 const { Text } = Typography;
 
 // Định nghĩa các Interface
@@ -145,10 +146,7 @@ const Dashboard: React.FC = () => {
 
   if (loading && !stats) {
     return (
-      <div className="flex justify-center items-center h-[70vh]">
-        {/* SỬA LỖI 2: Đổi `tip` thành `description` để không bị Antd báo vàng */}
-        <Spin size="large" description="Đang tải dữ liệu tổng quan nhà máy..." />
-      </div>
+      <DashboardSkeleton />
     );
   }
 
@@ -187,20 +185,20 @@ const Dashboard: React.FC = () => {
 
   const getMachineCardClass = (status: string) => {
     switch (status) {
-      case 'RUNNING': return 'border-green-600 bg-green-50';
-      case 'DOWN': return 'border-red-600 bg-red-100 animate-pulse';
-      case 'IDLE': return 'border-yellow-500 bg-yellow-50';
-      case 'OFFLINE': return 'border-slate-400 bg-slate-100 opacity-80';
-      default: return 'border-slate-300 bg-white';
+      case 'RUNNING': return 'border-green-600 bg-green-50 dark:bg-green-900 dark:border-green-500';
+      case 'DOWN': return 'border-red-600 bg-red-100 dark:bg-red-900 dark:border-red-500 animate-pulse';
+      case 'IDLE': return 'border-yellow-500 bg-yellow-50 dark:bg-yellow-900 dark:border-yellow-400';
+      case 'OFFLINE': return 'border-slate-400 bg-slate-100 dark:bg-slate-700 dark:border-slate-500 opacity-80';
+      default: return 'border-slate-300 bg-white dark:bg-slate-800 dark:border-slate-600';
     }
   };
 
   return (
-    <div className="space-y-6 animate-fade-in">
+    <div className="space-y-6 animate-fade-in dark:bg-slate-900 dark:text-gray-100">
       <div className="flex justify-between items-center mb-6">
         <div>
-          <h2 className="text-2xl font-bold text-gray-800">Tổng quan Quản trị Sản xuất</h2>
-          <p className="text-gray-500">Số liệu được đồng bộ hóa toàn diện theo thời gian thực (Real-time).</p>
+          <h2 className="text-2xl font-bold text-gray-800 dark:text-gray-50">Tổng quan Quản trị Sản xuất</h2>
+          <p className="text-gray-500 dark:text-gray-400">Số liệu được đồng bộ hóa toàn diện theo thời gian thực (Real-time).</p>
         </div>
         <Button 
           type="primary" 
@@ -214,7 +212,7 @@ const Dashboard: React.FC = () => {
 
       <Row gutter={[16, 16]}>
         <Col xs={24} sm={12} lg={6}>
-          <Card className="shadow-sm border-l-4 border-l-blue-500 h-full">
+          <Card className="shadow-sm border-l-4 border-l-blue-500 h-full dark:bg-slate-800 dark:border-l-blue-400">
             <Statistic 
               title={<span className="font-semibold text-gray-600">Tiến độ Sản xuất (Lệnh đang chạy)</span>} 
               value={safeStats.activeWorkOrders} 
@@ -244,7 +242,7 @@ const Dashboard: React.FC = () => {
         </Col>
 
         <Col xs={24} sm={12} lg={6}>
-          <Card className="shadow-sm border-l-4 border-l-orange-400 h-full">
+          <Card className="shadow-sm border-l-4 border-l-orange-400 h-full dark:bg-slate-800 dark:border-l-orange-300">
             <Statistic 
               title={<span className="font-semibold text-gray-600">Tỷ lệ Hàng lỗi (Defect Rate)</span>} 
               value={defectRate} 
@@ -258,7 +256,7 @@ const Dashboard: React.FC = () => {
         </Col>
 
         <Col xs={24} sm={12} lg={6}>
-          <Card className="shadow-sm border-l-4 border-l-gray-400 h-full flex flex-col justify-center items-center">
+          <Card className="shadow-sm border-l-4 border-l-gray-400 h-full flex flex-col justify-center items-center dark:bg-slate-800 dark:border-l-gray-500">
              <Statistic 
               title={<span className="font-semibold text-gray-600">Lệnh Hoàn Thành</span>} 
               value={safeStats.completedWorkOrders} 
@@ -270,8 +268,8 @@ const Dashboard: React.FC = () => {
       </Row>
 
       <Card
-        title={<div className="flex items-center gap-2"><ToolOutlined className="text-slate-700" /><span className="font-bold">Andon ảo: Trạng thái máy theo thời gian thực</span></div>}
-        className="shadow-sm"
+        title={<div className="flex items-center gap-2"><ToolOutlined className="text-slate-700 dark:text-slate-300" /><span className="font-bold dark:text-gray-100">Andon ảo: Trạng thái máy theo thời gian thực</span></div>}
+        className="shadow-sm dark:bg-slate-800"
       >
         <Row gutter={[12, 12]}>
           {machines.map((machine) => (
@@ -296,8 +294,8 @@ const Dashboard: React.FC = () => {
       <Row gutter={[16, 16]} className="mt-4">
         <Col xs={24} lg={16} className="space-y-6">
           <Card 
-            title={<div className="flex items-center gap-2"><BuildOutlined className="text-blue-600" /><span className="font-bold">Top 5 Vật tư Tồn kho lớn nhất</span></div>} 
-            className="shadow-sm"
+            title={<div className="flex items-center gap-2"><BuildOutlined className="text-blue-600 dark:text-blue-400" /><span className="font-bold dark:text-gray-100">Top 5 Vật tư Tồn kho lớn nhất</span></div>} 
+            className="shadow-sm dark:bg-slate-800"
           >
             {inventoryChartData.length > 0 ? (
               <div className="h-75">
@@ -317,8 +315,8 @@ const Dashboard: React.FC = () => {
           </Card>
 
           <Card 
-            title={<div className="flex items-center gap-2"><AppstoreOutlined className="text-purple-600" /><span className="font-bold">Tỷ lệ Pass / NG</span></div>} 
-            className="shadow-sm"
+            title={<div className="flex items-center gap-2"><AppstoreOutlined className="text-purple-600 dark:text-purple-400" /><span className="font-bold dark:text-gray-100">Tỷ lệ Pass / NG</span></div>} 
+            className="shadow-sm dark:bg-slate-800"
           >
             <div style={{ height: 250 }}>
               <ResponsiveContainer width="100%" height="100%">
@@ -339,8 +337,8 @@ const Dashboard: React.FC = () => {
           </Card>
 
           <Card
-            title={<div className="flex items-center gap-2"><SyncOutlined className="text-emerald-600" /><span className="font-bold">Sản lượng theo ca/nhịp (mô phỏng theo trạng thái lệnh)</span></div>}
-            className="shadow-sm"
+            title={<div className="flex items-center gap-2"><SyncOutlined className="text-emerald-600 dark:text-emerald-400" /><span className="font-bold dark:text-gray-100">Sản lượng theo ca/nhịp (mô phỏng theo trạng thái lệnh)</span></div>}
+            className="shadow-sm dark:bg-slate-800"
           >
             <div style={{ height: 250 }}>
               <ResponsiveContainer width="100%" height="100%">
@@ -358,8 +356,8 @@ const Dashboard: React.FC = () => {
 
         <Col xs={24} lg={8}>
           <Card 
-            title={<div className="flex items-center gap-2"><AlertOutlined className="text-red-500" /><span className="font-bold">Bảng tin Sự cố & Cảnh báo (Live)</span></div>} 
-            className="shadow-sm h-full"
+            title={<div className="flex items-center gap-2"><AlertOutlined className="text-red-500" /><span className="font-bold dark:text-gray-100">Bảng tin Sự cố & Cảnh báo (Live)</span></div>} 
+            className="shadow-sm h-full dark:bg-slate-800"
             bodyStyle={{ padding: '0 16px', height: '620px', overflowY: 'auto' }}
           >
             {alerts.length > 0 ? (
