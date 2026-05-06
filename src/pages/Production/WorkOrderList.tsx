@@ -32,7 +32,7 @@ const WorkOrderList: React.FC = () => {
   const [logs, setLogs] = useState<any[]>([]);
   const [loadingLogs, setLoadingLogs] = useState(false);
 
-  const [qrModal, setQrModal] = useState<{open: boolean, orderNumber?: string, orderId?: number}>({open: false});
+  const [qrModal, setQrModal] = useState<{open: boolean, orderNumber?: string, orderId?: number, workCenterId?: number, workCenterName?: string}>({open: false});
 
   const [items, setItems] = useState<any[]>([]);
 
@@ -269,7 +269,13 @@ const WorkOrderList: React.FC = () => {
             type="text" 
             icon={<QrcodeOutlined />} 
             className="text-blue-600 hover:bg-blue-50"
-            onClick={() => setQrModal({ open: true, orderId: record.id, orderNumber: record.orderNumber })}
+            onClick={() => setQrModal({
+              open: true,
+              orderId: record.id,
+              orderNumber: record.orderNumber,
+              workCenterId: record.workCenterId,
+              workCenterName: record.workCenterName,
+            })}
           >
             Mã QR
           </Button>
@@ -453,7 +459,9 @@ const WorkOrderList: React.FC = () => {
               value={JSON.stringify({ 
                 type: 'WORK_ORDER', 
                 id: qrModal.orderId, 
-                orderNumber: qrModal.orderNumber 
+                orderNumber: qrModal.orderNumber,
+                workCenterId: qrModal.workCenterId,
+                workCenterName: qrModal.workCenterName,
               })} 
               size={200}
               color="#0f172a" 

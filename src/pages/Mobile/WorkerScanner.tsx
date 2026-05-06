@@ -1,16 +1,18 @@
 import React, { useEffect, useState } from 'react';
-import { Card, Button, Form, Input, Select, message, Typography, Divider, Tag, Progress, Space } from 'antd';
+import { Card, Button, Form, Input, message, Typography, Divider, Tag, Progress, Space } from 'antd';
 import { QrcodeOutlined, LeftOutlined, CheckOutlined } from '@ant-design/icons';
 import { Html5QrcodeScanner } from 'html5-qrcode';
 import { reportProgress } from '../../services/production.service';
 import { getWorkCenters } from '../../services/master-data.service';
 import apiClient from '../../services/apiClient';
+import { useAuth } from '../../contexts/AuthContext';
 
 const { Title, Text } = Typography;
 
 const WorkerScanner: React.FC = () => {
+  const { user } = useAuth();
   const [scanning, setScanning] = useState(false);
-  const [scanData, setScanData] = useState<{ id: number; orderNumber: string } | null>(null);
+  const [scanData, setScanData] = useState<{ id: number; orderNumber: string; workCenterId?: number; workCenterName?: string } | null>(null);
   const [workOrderDetail, setWorkOrderDetail] = useState<any>(null);
   const [workCenters, setWorkCenters] = useState<any[]>([]);
   const [loading, setLoading] = useState(false);
@@ -44,7 +46,7 @@ const WorkerScanner: React.FC = () => {
 
   const adjustQty = (field: 'okQty' | 'ngQty', delta: number) => {
     const nextValue = Math.max(0, getQtyValue(field) + delta);
-    form.setFieldValue(field, nextValue);
+    form.setFieldsValue({ [field]: nextValue });
   };
 
   const renderQtyPad = (field: 'okQty' | 'ngQty', tone: 'pass' | 'fail') => {
@@ -75,6 +77,24 @@ const WorkerScanner: React.FC = () => {
   useEffect(() => {
     getWorkCenters().then(setWorkCenters).catch(() => message.error("Lỗi tải danh sách máy!"));
   }, []);
+
+  useEffect(() => {
+    if (!user) return;
+    form.setFieldsValue({ operatorName: user.fullName || user.username });
+  }, [user, form]);
+
+  useEffect(() => {
+    const workCenterId = scanData?.workCenterId ?? workOrderDetail?.workCenterId;
+    const workCenterName = scanData?.workCenterName ?? workOrderDetail?.workCenterName;
+
+    if (workCenterId) {
+      form.setFieldsValue({ workCenterId });
+    }
+
+    if (workCenterName || workCenterId) {
+      form.setFieldsValue({ workCenterName: workCenterName || workCenters.find(wc => wc.id === workCenterId)?.name || `Máy #${workCenterId}` });
+    }
+  }, [scanData, workOrderDetail, workCenters, form]);
 
   // Hàm fetch chi tiết work order để hiển thị tiến độ
   const fetchWorkOrderDetail = async (orderId: number) => {
@@ -133,15 +153,28 @@ const WorkerScanner: React.FC = () => {
 
   const handleReport = async (values: any) => {
     if (!scanData) return;
+    const operatorName = user?.fullName || user?.username;
+    const workCenterId = scanData.workCenterId ?? workOrderDetail?.workCenterId;
+
+    if (!operatorName) {
+      message.error('Không lấy được thông tin người dùng đăng nhập!');
+      return;
+    }
+
+    if (!workCenterId) {
+      message.error('Không lấy được thông tin máy sản xuất cho lệnh này!');
+      return;
+    }
+
     setLoading(true);
     try {
       await reportProgress(
         scanData.id, 
         values.okQty, 
         values.ngQty, 
-        values.workCenterId, 
+        workCenterId, 
         values.defectReason, 
-        values.operatorName
+        operatorName
       );
       playFeedback('success');
       message.success("✅ ĐÃ GỬI BÁO CÁO THÀNH CÔNG!");
@@ -219,17 +252,16 @@ const WorkerScanner: React.FC = () => {
             <Button type="text" icon={<LeftOutlined />} onClick={handleRescan} className="text-gray-500 p-0">Quét lại</Button>
             <Tag color="blue" className="text-sm m-0 px-3 py-1 font-bold">{scanData.orderNumber}</Tag>
           </div>
-          
-          {/* Hiển thị tiến độ hiện tại nếu có dữ liệu */}
+
           {workOrderDetail && (
             <div className="mb-4 p-3 bg-blue-50 rounded-md border border-blue-200">
               <div className="flex justify-between items-center mb-2">
                 <span className="text-sm font-semibold text-gray-700">Tiến độ Lệnh sản xuất hiện tại</span>
                 <span className="text-lg font-bold text-blue-600">{calculateProgress()}%</span>
               </div>
-              <Progress 
-                percent={calculateProgress()} 
-                size="small" 
+              <Progress
+                percent={calculateProgress()}
+                size="small"
                 status={workOrderDetail.status === 'COMPLETED' ? 'success' : 'active'}
               />
               <div className="text-xs text-gray-500 mt-2">
@@ -237,22 +269,31 @@ const WorkerScanner: React.FC = () => {
               </div>
             </div>
           )}
-          
+
           <Divider className="my-3" />
-          
+
+          <div className="mb-4 rounded-xl border border-slate-200 bg-slate-50 p-3 text-sm">
+            <div className="flex items-center justify-between gap-3 border-b border-slate-200 pb-2">
+              <span className="font-semibold text-slate-600">Người thao tác</span>
+              <span className="font-bold text-slate-900">{user?.fullName || user?.username || 'Đang đăng nhập'}</span>
+            </div>
+            <div className="flex items-center justify-between gap-3 pt-2">
+              <span className="font-semibold text-slate-600">Máy sản xuất</span>
+              <span className="font-bold text-slate-900">
+                {scanData.workCenterName || workOrderDetail?.workCenterName || workCenters.find(wc => wc.id === (scanData.workCenterId ?? workOrderDetail?.workCenterId))?.name || (workOrderDetail?.workCenterId ? `Máy #${workOrderDetail.workCenterId}` : 'Đang tải...')}
+              </span>
+            </div>
+          </div>
+
           <Form form={form} layout="vertical" onFinish={handleReport} size="large">
-            <Form.Item name="operatorName" label={<span className="font-bold">Người thao tác</span>} rules={[{required: true, message: 'Bắt buộc!'}]}>
-              <Input placeholder="Nhập tên của bạn" className="rounded-lg h-12 text-base" />
+            <Form.Item name="operatorName" hidden>
+              <Input />
             </Form.Item>
-            
-            <Form.Item name="workCenterId" label={<span className="font-bold">Đang sản xuất tại máy</span>} rules={[{required: true, message: 'Bắt buộc!'}]}>
-              <Select placeholder="Chọn máy..." className="rounded-lg" size="large">
-                {workCenters.map(wc => (
-                  <Select.Option key={wc.id} value={wc.id} disabled={wc.currentStatus === 'DOWN'}>
-                    {wc.name} {wc.currentStatus === 'DOWN' ? '(Hỏng)' : ''}
-                  </Select.Option>
-                ))}
-              </Select>
+            <Form.Item name="workCenterId" hidden>
+              <Input />
+            </Form.Item>
+            <Form.Item name="workCenterName" hidden>
+              <Input />
             </Form.Item>
 
             <Space direction="vertical" size={12} className="w-full">
