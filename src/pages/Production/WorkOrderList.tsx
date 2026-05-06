@@ -6,9 +6,9 @@ import SockJS from 'sockjs-client';
 import { Stomp } from '@stomp/stompjs';
 import * as XLSX from 'xlsx';
 
-import type { WorkOrder } from '../../types/production.type';
+import type { WorkOrder, ProductionSchedule } from '../../types/production.type';
 import type { WorkCenter } from '../../types/master-data.type';
-import { getWorkOrders, createWorkOrder, reportProgress } from '../../services/production.service';
+import { getWorkOrders, createWorkOrder, reportProgress, getProductionSchedules } from '../../services/production.service';
 import { getWorkCenters, getItems } from '../../services/master-data.service';
 import apiClient from '../../services/apiClient';
 import AdvancedFilterPanel from '../../components/AdvancedFilterPanel';
@@ -35,6 +35,10 @@ const WorkOrderList: React.FC = () => {
   const [qrModal, setQrModal] = useState<{open: boolean, orderNumber?: string, orderId?: number, workCenterId?: number, workCenterName?: string}>({open: false});
 
   const [items, setItems] = useState<any[]>([]);
+
+  const [schedulesModal, setSchedulesModal] = useState<{open: boolean, orderId?: number, orderNumber?: string}>({open: false});
+  const [schedules, setSchedules] = useState<ProductionSchedule[]>([]);
+  const [loadingSchedules, setLoadingSchedules] = useState(false);
 
   // Filter state
   const [filteredOrders, setFilteredOrders] = useState<WorkOrder[]>([]);
@@ -215,6 +219,19 @@ const WorkOrderList: React.FC = () => {
     }
   };
 
+  const fetchSchedules = async (orderId: number, orderNumber: string) => {
+    setSchedulesModal({ open: true, orderId, orderNumber });
+    setLoadingSchedules(true);
+    try {
+      const res = await getProductionSchedules(orderId);
+      setSchedules(res);
+    } catch (error) {
+      message.error("Không thể tải danh sách máy sản xuất!");
+    } finally {
+      setLoadingSchedules(false);
+    }
+  };
+
   const columns = [
     { title: 'Mã lệnh', dataIndex: 'orderNumber', key: 'orderNumber', className: 'font-bold' },
     { title: 'Sản phẩm', dataIndex: 'itemName', key: 'itemName' },
@@ -256,6 +273,14 @@ const WorkOrderList: React.FC = () => {
       key: 'action',
       render: (_: any, record: any) => (
         <Space>
+          <Button 
+            type="link" 
+            className="text-blue-600 font-semibold"
+            size="small"
+            onClick={() => fetchSchedules(record.id, record.orderNumber)}
+          >
+            Máy ({record.workCenterCount || 1})
+          </Button>
           <Button 
             type="link" 
             icon={<CheckCircleOutlined />} 
@@ -314,6 +339,68 @@ const WorkOrderList: React.FC = () => {
           {record.failedQuantity > 0 && <span className="font-bold text-red-500">NG: +{record.failedQuantity}</span>}
         </div>
       )
+    }
+  ];
+
+  // Cấu hình cột cho bảng Máy sản xuất (Production Schedules)
+  const scheduleColumns = [
+    {
+      title: 'Công đoạn',
+      dataIndex: 'sequenceNumber',
+      key: 'sequenceNumber',
+      render: (val: any) => `Bước ${val}`,
+      width: 80
+    },
+    {
+      title: 'Máy sản xuất',
+      dataIndex: 'workCenterName',
+      key: 'workCenterName',
+      render: (val: any) => <span className="font-semibold">{val}</span>
+    },
+    {
+      title: 'Trạng thái',
+      dataIndex: 'status',
+      key: 'status',
+      render: (status: string) => (
+        <Tag
+          color={
+            status === 'PENDING' ? 'default' :
+            status === 'IN_PROGRESS' ? 'processing' :
+            status === 'COMPLETED' ? 'success' :
+            status === 'SKIPPED' ? 'error' :
+            'default'
+          }
+        >
+          {status}
+        </Tag>
+      ),
+      width: 100
+    },
+    {
+      title: 'Tiến độ',
+      key: 'progress',
+      render: (_: any, record: any) => {
+        const percent = record.quantityTarget > 0
+          ? Math.round((record.quantityCompleted / record.quantityTarget) * 100)
+          : 0;
+        return (
+          <div style={{ width: 150 }}>
+            <Progress percent={percent > 100 ? 100 : percent} size="small" />
+            <small className="text-gray-500">{record.quantityCompleted} / {record.quantityTarget}</small>
+          </div>
+        );
+      }
+    },
+    {
+      title: 'Thời gian dự kiến',
+      key: 'estimatedTime',
+      render: (_: any, record: any) => (
+        <div className="text-sm">
+          {record.estimatedStartTime && <div>Bắt đầu: {dayjs(record.estimatedStartTime).format('HH:mm')}</div>}
+          {record.estimatedEndTime && <div>Kết thúc: {dayjs(record.estimatedEndTime).format('HH:mm')}</div>}
+        </div>
+      ),
+      width: 120
     }
   ];
 
@@ -442,7 +529,29 @@ const WorkOrderList: React.FC = () => {
         />
       </Modal>
 
-      {/* 👉 POPUP 4: HIỂN THỊ VÀ IN MÃ QR */}
+      {/* POPUP 4: DANH SÁCH MÁY SẢN XUẤT (PRODUCTION SCHEDULES) */}
+      <Modal 
+        title={<span className="text-lg font-bold">Danh sách Máy sản xuất - Lệnh [{schedulesModal.orderNumber}]</span>} 
+        open={schedulesModal.open} 
+        onCancel={() => setSchedulesModal({open: false})} 
+        footer={[
+          <Button key="close" type="primary" onClick={() => setSchedulesModal({open: false})}>Đóng</Button>
+        ]}
+        width={isMobile ? '96vw' : 900}
+      >
+        <Table 
+          dataSource={schedules} 
+          columns={scheduleColumns} 
+          rowKey="id" 
+          loading={loadingSchedules}
+          pagination={false}
+          bordered
+          scroll={{ x: 900 }}
+          locale={{ emptyText: 'Chưa có máy được gán cho lệnh này. Vui lòng kiểm tra dữ liệu routing của sản phẩm.' }}
+        />
+      </Modal>
+
+      {/* 👉 POPUP 5: HIỂN THỊ VÀ IN MÃ QR */}
       <Modal 
         title={<span className="text-lg font-bold">Tem Lệnh Sản Xuất</span>} 
         open={qrModal.open} 

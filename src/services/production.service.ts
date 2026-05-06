@@ -1,5 +1,5 @@
 import apiClient from './apiClient';
-import type { WorkOrder } from '../types/production.type';
+import type { WorkOrder, ProductionSchedule } from '../types/production.type';
 
 export const getWorkOrders = async (): Promise<WorkOrder[]> => {
   return apiClient.get<WorkOrder[]>('/production/work-orders');
@@ -7,6 +7,10 @@ export const getWorkOrders = async (): Promise<WorkOrder[]> => {
 
 export const createWorkOrder = async (data: Partial<WorkOrder>) => {
   return apiClient.post('/production/work-orders', data);
+};
+
+export const getProductionSchedules = async (workOrderId: number): Promise<ProductionSchedule[]> => {
+  return apiClient.get<ProductionSchedule[]>(`/production/work-orders/${workOrderId}/schedules`);
 };
 
 export const reportProgress = async (
