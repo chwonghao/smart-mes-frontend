@@ -2,9 +2,8 @@ import React, { useEffect, useState } from 'react';
 import { Card, Button, Form, Input, message, Typography, Divider, Tag, Progress, Space } from 'antd';
 import { QrcodeOutlined, LeftOutlined, CheckOutlined } from '@ant-design/icons';
 import { Html5QrcodeScanner } from 'html5-qrcode';
-import { reportProgress } from '../../services/production.service';
+import { reportProgress, getWorkOrderWithSchedules } from '../../services/production.service';
 import { getWorkCenters } from '../../services/master-data.service';
-import apiClient from '../../services/apiClient';
 import { useAuth } from '../../contexts/AuthContext';
 
 const { Title, Text } = Typography;
@@ -14,8 +13,12 @@ const WorkerScanner: React.FC = () => {
   const [scanning, setScanning] = useState(false);
   const [scanData, setScanData] = useState<{ id: number; orderNumber: string; workCenterId?: number; workCenterName?: string } | null>(null);
   const [workOrderDetail, setWorkOrderDetail] = useState<any>(null);
+  const [schedules, setSchedules] = useState<any[]>([]);
+  const [selectedScheduleId, setSelectedScheduleId] = useState<number | null>(null);
   const [workCenters, setWorkCenters] = useState<any[]>([]);
   const [loading, setLoading] = useState(false);
+  const [okQty, setOkQty] = useState(0);
+  const [ngQty, setNgQty] = useState(0);
   const [form] = Form.useForm();
 
   const playFeedback = (status: 'success' | 'error') => {
@@ -42,10 +45,18 @@ const WorkerScanner: React.FC = () => {
     }
   };
 
-  const getQtyValue = (field: 'okQty' | 'ngQty') => Number(form.getFieldValue(field) || 0);
+  const getQtyValue = (field: 'okQty' | 'ngQty') => field === 'okQty' ? okQty : ngQty;
 
   const adjustQty = (field: 'okQty' | 'ngQty', delta: number) => {
-    const nextValue = Math.max(0, getQtyValue(field) + delta);
+    const currentValue = field === 'okQty' ? okQty : ngQty;
+    const nextValue = Math.max(0, currentValue + delta);
+    
+    if (field === 'okQty') {
+      setOkQty(nextValue);
+    } else {
+      setNgQty(nextValue);
+    }
+    
     form.setFieldsValue({ [field]: nextValue });
   };
 
@@ -96,13 +107,33 @@ const WorkerScanner: React.FC = () => {
     }
   }, [scanData, workOrderDetail, workCenters, form]);
 
-  // Hàm fetch chi tiết work order để hiển thị tiến độ
+  // Hàm fetch chi tiết work order và danh sách máy sản xuất
   const fetchWorkOrderDetail = async (orderId: number) => {
     try {
-      const detail = await apiClient.get(`/production/work-orders/${orderId}`);
-      setWorkOrderDetail(detail);
+      const { workOrder, schedules } = await getWorkOrderWithSchedules(orderId);
+      setWorkOrderDetail(workOrder);
+      setSchedules(schedules);
+      
+      // Nếu chỉ có 1 máy, tự động chọn máy đó
+      if (schedules && schedules.length === 1) {
+        const firstSchedule = schedules[0];
+        const workCenterId = firstSchedule.workCenterId;
+        const workCenterName = firstSchedule.workCenterName || workCenters.find(wc => wc.id === workCenterId)?.name || `Máy #${workCenterId}`;
+        
+        setSelectedScheduleId(firstSchedule.id);
+        form.setFieldsValue({ workCenterId, workCenterName });
+      } else if (schedules && schedules.length > 1) {
+        // Nếu có nhiều máy, chọn máy đầu tiên
+        const firstSchedule = schedules[0];
+        const workCenterId = firstSchedule.workCenterId;
+        const workCenterName = firstSchedule.workCenterName || workCenters.find(wc => wc.id === workCenterId)?.name || `Máy #${workCenterId}`;
+        
+        setSelectedScheduleId(firstSchedule.id);
+        form.setFieldsValue({ workCenterId, workCenterName });
+      }
     } catch (error) {
       console.error("Lỗi tải chi tiết Lệnh sản xuất:", error);
+      message.error("Không thể tải chi tiết lệnh sản xuất!");
     }
   };
 
@@ -182,6 +213,8 @@ const WorkerScanner: React.FC = () => {
       // 🔑 QUAN TRỌNG: Refetch chi tiết work order để cập nhật progress trên UI
       await fetchWorkOrderDetail(scanData.id);
       
+      setOkQty(0);
+      setNgQty(0);
       form.resetFields();
       // Không reset scanData ngay - để hiển thị progress mới được cập nhật
     } catch (error: any) {
@@ -196,6 +229,10 @@ const WorkerScanner: React.FC = () => {
   const handleRescan = () => {
     setScanData(null);
     setWorkOrderDetail(null);
+    setSchedules([]);
+    setSelectedScheduleId(null);
+    setOkQty(0);
+    setNgQty(0);
     form.resetFields();
     form.setFieldsValue({ okQty: 0, ngQty: 0 });
   };
@@ -284,6 +321,35 @@ const WorkerScanner: React.FC = () => {
               </span>
             </div>
           </div>
+
+          {schedules && schedules.length > 1 && (
+            <div className="mb-4 p-3 rounded-lg border border-blue-300 bg-blue-50">
+              <div className="text-sm font-semibold text-blue-700 mb-2">📋 Danh sách máy sản xuất cho lệnh này</div>
+              <div className="space-y-2">
+                {schedules.map((schedule: any, idx: number) => (
+                  <Button
+                    key={schedule.id}
+                    type={selectedScheduleId === schedule.id ? "primary" : "default"}
+                    className="w-full text-left h-auto py-2"
+                    onClick={() => {
+                      setSelectedScheduleId(schedule.id);
+                      form.setFieldsValue({
+                        workCenterId: schedule.workCenterId,
+                        workCenterName: schedule.workCenterName || workCenters.find(wc => wc.id === schedule.workCenterId)?.name || `Máy #${schedule.workCenterId}`
+                      });
+                    }}
+                  >
+                    <div className="flex justify-between w-full items-center">
+                      <span className="font-semibold">Bước {idx + 1}: {schedule.workCenterName || workCenters.find(wc => wc.id === schedule.workCenterId)?.name}</span>
+                      <Tag color={schedule.status === 'COMPLETED' ? 'green' : schedule.status === 'IN_PROGRESS' ? 'blue' : 'default'}>
+                        {schedule.status}
+                      </Tag>
+                    </div>
+                  </Button>
+                ))}
+              </div>
+            </div>
+          )}
 
           <Form form={form} layout="vertical" onFinish={handleReport} size="large">
             <Form.Item name="operatorName" hidden>

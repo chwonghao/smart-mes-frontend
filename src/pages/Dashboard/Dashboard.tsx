@@ -368,7 +368,7 @@ const Dashboard: React.FC = () => {
                   const isMachineDown = item.alertType === 'MACHINE_DOWN';
                   const isQC = item.alertType === 'QC_ALERT';
                   return (
-                    <List.Item className="border-b border-gray-100 hover:bg-gray-50 transition-colors p-3 rounded-md mt-2">
+                    <List.Item className="border-b border-gray-100 dark:border-slate-700 hover:bg-gray-50 dark:hover:bg-slate-700 transition-colors p-3 rounded-md mt-2">
                       <List.Item.Meta
                         avatar={
                           <div className={`w-10 h-10 rounded-full flex items-center justify-center text-white ${isMachineDown ? 'bg-red-500' : isQC ? 'bg-orange-500' : 'bg-blue-500'}`}>
@@ -376,16 +376,16 @@ const Dashboard: React.FC = () => {
                           </div>
                         }
                         title={
-                          <div className="flex justify-between items-center mb-1">
+                          <div className="flex justify-between items-center mb-1 gap-3">
                             <Tag color={isMachineDown ? 'red' : isQC ? 'orange' : 'blue'} className="m-0 border-0 font-bold">
                               {isMachineDown ? 'SỰ CỐ MÁY' : isQC ? 'LỖI CHẤT LƯỢNG' : 'THÔNG BÁO'}
                             </Tag>
-                            <span className="text-xs text-gray-400">
+                            <span className="text-xs text-gray-400 dark:text-gray-400 shrink-0">
                               {new Date(item.createdAt).toLocaleTimeString('vi-VN', {hour: '2-digit', minute:'2-digit'})}
                             </span>
                           </div>
                         }
-                        description={<Text className="text-gray-700 text-sm leading-tight line-clamp-2">{item.message}</Text>}
+                        description={<Text className="text-gray-700 dark:text-gray-100 text-sm leading-tight line-clamp-2">{item.message}</Text>}
                       />
                     </List.Item>
                   );

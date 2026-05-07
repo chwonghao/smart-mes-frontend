@@ -226,7 +226,11 @@ const WorkOrderList: React.FC = () => {
       const res = await getProductionSchedules(orderId);
       setSchedules(res);
     } catch (error) {
-      message.error("Không thể tải danh sách máy sản xuất!");
+      const status = (error as any)?.response?.status;
+      if (status !== 404) {
+        message.error("Không thể tải danh sách máy sản xuất!");
+      }
+      setSchedules([]);
     } finally {
       setLoadingSchedules(false);
     }

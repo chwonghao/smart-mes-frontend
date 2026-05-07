@@ -1,10 +1,12 @@
 @import "tailwindcss";
 
-/* Dòng này để ép trình duyệt luôn hiển thị nền sáng, tránh Dark mode làm đen màn hình */
+@custom-variant dark (&:where(.app-dark, .app-dark *));
+
+/* Đồng bộ nền theo theme của ứng dụng thay vì theo dark mode của trình duyệt */
 body {
-  background-color: #f3f4f6; 
+  background-color: #f3f4f6;
   margin: 0;
-  transition: background-color 0.25s ease;
+  transition: background-color 0.25s ease, color 0.25s ease;
 }
 
 .app-light {

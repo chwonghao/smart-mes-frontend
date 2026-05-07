@@ -66,11 +66,11 @@ const AdvancedFilterPanel: React.FC<AdvancedFilterPanelProps> = ({
 
   return (
     <Card 
-      className="mb-6 shadow-sm dark:bg-slate-800 dark:border-slate-700"
+      className="mb-6 shadow-sm bg-white dark:bg-slate-800 dark:border-slate-700"
       title={
         <div className="flex items-center gap-2">
           <FilterOutlined className="text-blue-600 dark:text-blue-400" />
-          <span className="font-bold dark:text-gray-100">Bộ lọc Nâng cao</span>
+          <span className="font-bold text-gray-800 dark:text-gray-100">Bộ lọc Nâng cao</span>
         </div>
       }
       extra={
@@ -79,13 +79,13 @@ const AdvancedFilterPanel: React.FC<AdvancedFilterPanelProps> = ({
           size="small" 
           icon={<ClearOutlined />}
           onClick={handleReset}
-          className="dark:text-gray-300"
+          className="text-gray-600 dark:text-gray-300"
         >
           Xóa lọc
         </Button>
       }
     >
-      <Form form={form} layout="vertical" className="dark:text-gray-100">
+      <Form form={form} layout="vertical" className="text-gray-700 dark:text-gray-100">
         <Row gutter={[16, 0]}>
           {/* Search by Order Number */}
           <Col xs={24} sm={12} lg={6}>
@@ -93,7 +93,7 @@ const AdvancedFilterPanel: React.FC<AdvancedFilterPanelProps> = ({
               <Input
                 placeholder="Nhập mã lệnh..."
                 onChange={handleSearchChange}
-                className="dark:bg-slate-700 dark:border-slate-600 dark:text-gray-100"
+                className="bg-white text-gray-800 dark:bg-slate-700 dark:border-slate-600 dark:text-gray-100"
               />
             </Form.Item>
           </Col>
@@ -105,7 +105,7 @@ const AdvancedFilterPanel: React.FC<AdvancedFilterPanelProps> = ({
                 format="DD/MM/YYYY"
                 onChange={handleDateRangeChange}
                 style={{ width: '100%' }}
-                className="dark:bg-slate-700 dark:border-slate-600 dark:text-gray-100"
+                className="bg-white text-gray-800 dark:bg-slate-700 dark:border-slate-600 dark:text-gray-100"
               />
             </Form.Item>
           </Col>
@@ -121,7 +121,7 @@ const AdvancedFilterPanel: React.FC<AdvancedFilterPanelProps> = ({
                   label: center.name,
                   value: String(center.id),
                 }))}
-                className="dark:bg-slate-700 dark:border-slate-600"
+                className="bg-white text-gray-800 dark:bg-slate-700 dark:border-slate-600 dark:text-gray-100"
               />
             </Form.Item>
           </Col>
@@ -139,7 +139,7 @@ const AdvancedFilterPanel: React.FC<AdvancedFilterPanelProps> = ({
                   { label: 'Hoàn thành', value: 'COMPLETED' },
                   { label: 'Hủy', value: 'CANCELLED' },
                 ]}
-                className="dark:bg-slate-700 dark:border-slate-600"
+                className="bg-white text-gray-800 dark:bg-slate-700 dark:border-slate-600 dark:text-gray-100"
               />
             </Form.Item>
           </Col>

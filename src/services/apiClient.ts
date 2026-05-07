@@ -1,7 +1,14 @@
 import axios, { type AxiosRequestConfig } from 'axios';
 
+const rawApiBaseUrl = import.meta.env.VITE_API_BASE_URL;
+const apiBaseUrl = rawApiBaseUrl?.startsWith('http')
+  ? rawApiBaseUrl
+  : import.meta.env.DEV
+    ? 'http://localhost:8080/api/v1'
+    : (rawApiBaseUrl || '/api/v1');
+
 const apiClient = axios.create({
-  baseURL: import.meta.env.VITE_API_BASE_URL || 'http://localhost:8080/api/v1',
+  baseURL: apiBaseUrl,
   headers: {
     'Content-Type': 'application/json',
   },

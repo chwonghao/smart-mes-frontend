@@ -9,6 +9,17 @@ export const createWorkOrder = async (data: Partial<WorkOrder>) => {
   return apiClient.post('/production/work-orders', data);
 };
 
+  export const getWorkOrderDetail = async (orderId: number): Promise<WorkOrder> => {
+    return apiClient.get<WorkOrder>(`/production/work-orders/${orderId}`);
+  };
+
+  export const getWorkOrderWithSchedules = async (orderId: number): Promise<{ workOrder: WorkOrder; schedules: ProductionSchedule[] }> => {
+    const [workOrder, schedules] = await Promise.all([
+      getWorkOrderDetail(orderId),
+      getProductionSchedules(orderId)
+    ]);
+    return { workOrder, schedules };
+  };
 export const getProductionSchedules = async (workOrderId: number): Promise<ProductionSchedule[]> => {
   return apiClient.get<ProductionSchedule[]>(`/production/work-orders/${workOrderId}/schedules`);
 };
