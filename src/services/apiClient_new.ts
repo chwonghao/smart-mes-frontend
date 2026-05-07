@@ -58,6 +58,14 @@ const requestRefreshToken = async () => {
   return refreshPromise;
 };
 
+// Request interceptor: Add retry count tracking
+apiClient.interceptors.request.use((config) => {
+  (config as any)._retryCount = ((config as any)._retryCount || 0);
+  return config;
+}, (error) => {
+  return Promise.reject(error);
+});
+
 // Response interceptor: BÓC TÁCH DỮ LIỆU & XỬ LÝ LỖI
 apiClient.interceptors.response.use(
   (response) => {
@@ -65,7 +73,8 @@ apiClient.interceptors.response.use(
     return response.data;
   },
   async (error) => {
-    const originalRequest = error.config as AxiosRequestConfig & { _retry?: boolean };
+    const originalRequest = error.config as AxiosRequestConfig & { _retry?: boolean; _retryCount?: number };
+    const retryCount = (originalRequest._retryCount || 0);
 
     if (error.response?.status === 401 && originalRequest && !originalRequest._retry && !isAuthEndpoint(originalRequest.url)) {
       originalRequest._retry = true;
@@ -83,6 +92,23 @@ apiClient.interceptors.response.use(
     if (error.response?.status === 401) {
       clearClientAuthState();
       window.location.href = '/login';
+    }
+
+    // 🔄 Offline/Network Error Retry Logic
+    if (shouldRetryRequest(error) && retryCount < RETRY_CONFIG.maxRetries) {
+      originalRequest._retryCount = retryCount + 1;
+      const delayMs = Math.min(
+        RETRY_CONFIG.retryDelay * Math.pow(RETRY_CONFIG.backoffMultiplier, retryCount),
+        RETRY_CONFIG.maxRetryDelay
+      );
+      
+      console.warn(
+        `⏱️ Retry ${originalRequest._retryCount}/${RETRY_CONFIG.maxRetries} sau ${delayMs}ms:`,
+        originalRequest.url
+      );
+      
+      await sleep(delayMs);
+      return apiClient.request(originalRequest);
     }
 
     return Promise.reject(error);

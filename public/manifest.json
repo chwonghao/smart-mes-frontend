@@ -1,0 +1,97 @@
+{
+  "name": "SmartMES - Manufacturing Execution System",
+  "short_name": "SmartMES",
+  "description": "Hệ thống quản lý sản xuất thông minh với hỗ trợ làm việc ngoại tuyến (Offline Mode)",
+  "start_url": "/",
+  "scope": "/",
+  "display": "standalone",
+  "orientation": "portrait-primary",
+  "theme_color": "#1890ff",
+  "background_color": "#ffffff",
+  "categories": ["productivity", "business"],
+  "icons": [
+    {
+      "src": "pwa-192x192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "pwa-512x512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "pwa-192x192-maskable.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "maskable"
+    },
+    {
+      "src": "pwa-512x512-maskable.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "maskable"
+    }
+  ],
+  "screenshots": [
+    {
+      "src": "screenshot1.png",
+      "sizes": "540x720",
+      "type": "image/png",
+      "form_factor": "narrow",
+      "label": "SmartMES Dashboard"
+    }
+  ],
+  "shortcuts": [
+    {
+      "name": "Scanner Báo Cáo Sản Lượng",
+      "short_name": "Báo Cáo Sản Lượng",
+      "description": "Quét mã QR và báo cáo sản lượng công nhân",
+      "url": "/mobile/scanner",
+      "icons": [
+        {
+          "src": "pwa-96x96.png",
+          "sizes": "96x96",
+          "type": "image/png"
+        }
+      ]
+    },
+    {
+      "name": "Dashboard Tổng Hợp",
+      "short_name": "Dashboard",
+      "description": "Xem tổng hợp sản xuất theo thời gian thực",
+      "url": "/dashboard",
+      "icons": [
+        {
+          "src": "pwa-96x96.png",
+          "sizes": "96x96",
+          "type": "image/png"
+        }
+      ]
+    }
+  ],
+  "share_target": {
+    "action": "/share",
+    "method": "POST",
+    "enctype": "multipart/form-data",
+    "params": {
+      "title": "title",
+      "text": "text",
+      "url": "url",
+      "files": [
+        {
+          "name": "media",
+          "accept": ["image/*", "video/*"]
+        }
+      ]
+    }
+  },
+  "protocol_handlers": [
+    {
+      "protocol": "web+smartmes",
+      "url": "/protocol?url=%s"
+    }
+  ]
+}

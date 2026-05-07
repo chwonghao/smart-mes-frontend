@@ -6,6 +6,47 @@ import { reportProgress, getWorkOrderWithSchedules } from '../../services/produc
 import { getWorkCenters } from '../../services/master-data.service';
 import { useAuth } from '../../contexts/AuthContext';
 
+// --- BẮT ĐẦU: IndexedDB Helper cho Offline Sync ---
+const initDB = (): Promise<IDBDatabase> => {
+  return new Promise((resolve, reject) => {
+    const request = indexedDB.open('SmartMES_OfflineDB', 1);
+    request.onupgradeneeded = (e: any) => {
+      const db = e.target.result;
+      if (!db.objectStoreNames.contains('offline_reports')) {
+        db.createObjectStore('offline_reports', { keyPath: 'requestId' });
+      }
+    };
+    request.onsuccess = () => resolve(request.result);
+    request.onerror = () => reject(request.error);
+  });
+};
+
+const saveReportOffline = async (report: any) => {
+  const db = await initDB();
+  return new Promise((resolve, reject) => {
+    const tx = db.transaction('offline_reports', 'readwrite');
+    tx.objectStore('offline_reports').put(report);
+    tx.oncomplete = () => resolve(true);
+    tx.onerror = () => reject(tx.error);
+  });
+};
+
+const getOfflineReports = async (): Promise<any[]> => {
+  const db = await initDB();
+  return new Promise((resolve) => {
+    const tx = db.transaction('offline_reports', 'readonly');
+    const req = tx.objectStore('offline_reports').getAll();
+    req.onsuccess = () => resolve(req.result);
+  });
+};
+
+const deleteOfflineReport = async (requestId: string) => {
+  const db = await initDB();
+  const tx = db.transaction('offline_reports', 'readwrite');
+  tx.objectStore('offline_reports').delete(requestId);
+};
+// --- KẾT THÚC: IndexedDB Helper ---
+
 const { Title, Text } = Typography;
 
 const WorkerScanner: React.FC = () => {
@@ -149,22 +190,28 @@ const WorkerScanner: React.FC = () => {
   useEffect(() => {
     if (!user?.workCenterId) return;
 
-    form.setFieldsValue({
-      workCenterId: user.workCenterId,
-      workCenterName: user.workCenterName || workCenters.find(wc => wc.id === user.workCenterId)?.name || `Máy #${user.workCenterId}`
-    });
+    // Chỉ gán khi form chưa có máy nào, tránh ghi đè nếu đã chọn máy thủ công
+    if (!form.getFieldValue('workCenterId')) {
+      form.setFieldsValue({
+        workCenterId: user.workCenterId,
+        workCenterName: user.workCenterName || workCenters.find(wc => wc.id === user.workCenterId)?.name || `Máy #${user.workCenterId}`
+      });
+    }
   }, [user, workCenters, form]);
 
   useEffect(() => {
-    const workCenterId = scanData?.workCenterId ?? workOrderDetail?.workCenterId ?? user?.workCenterId;
-    const workCenterName = scanData?.workCenterName ?? workOrderDetail?.workCenterName ?? user?.workCenterName;
+    const currentWcId = form.getFieldValue('workCenterId');
+    const workCenterId = currentWcId ?? scanData?.workCenterId ?? workOrderDetail?.workCenterId ?? user?.workCenterId;
+    
+    const currentWcName = form.getFieldValue('workCenterName');
+    const workCenterName = currentWcName ?? scanData?.workCenterName ?? workOrderDetail?.workCenterName ?? user?.workCenterName;
 
     if (workCenterId) {
       form.setFieldsValue({ workCenterId });
     }
 
     if (workCenterName || workCenterId) {
-      form.setFieldsValue({ workCenterName: workCenterName || workCenters.find(wc => wc.id === workCenterId)?.name || `Máy #${workCenterId}` });
+      form.setFieldsValue({ workCenterName: workCenterName || workCenters.find(wc => Number(wc.id) === Number(workCenterId))?.name || `Máy #${workCenterId}` });
     }
   }, [scanData, workOrderDetail, workCenters, user, form]);
 
@@ -175,19 +222,23 @@ const WorkerScanner: React.FC = () => {
       setWorkOrderDetail(workOrder);
       setSchedules(schedules);
 
+      const currentWorkCenterId = form.getFieldValue('workCenterId');
+
       // Nếu chỉ có 1 máy, tự động chọn máy đó
       if (schedules && schedules.length === 1) {
         const firstSchedule = schedules[0];
         const workCenterId = firstSchedule.workCenterId;
-        const workCenterName = firstSchedule.workCenterName || workCenters.find(wc => wc.id === workCenterId)?.name || `Máy #${workCenterId}`;
+        const workCenterName = firstSchedule.workCenterName || workCenters.find(wc => Number(wc.id) === Number(workCenterId))?.name || `Máy #${workCenterId}`;
 
         setSelectedScheduleId(firstSchedule.id);
         form.setFieldsValue({ workCenterId, workCenterName });
       } else if (schedules && schedules.length > 1) {
-        const assignedSchedule = user?.workCenterId ? schedules.find(schedule => schedule.workCenterId === user.workCenterId) : undefined;
-        const firstSchedule = assignedSchedule || schedules[0];
+        // Ưu tiên: Máy đang chọn trong form -> Máy được gán cho user -> Máy đầu tiên của lệnh
+        const currentSchedule = currentWorkCenterId ? schedules.find(s => Number(s.workCenterId) === Number(currentWorkCenterId)) : undefined;
+        const assignedSchedule = user?.workCenterId ? schedules.find(schedule => Number(schedule.workCenterId) === Number(user.workCenterId)) : undefined;
+        const firstSchedule = currentSchedule || assignedSchedule || schedules[0];
         const workCenterId = firstSchedule.workCenterId;
-        const workCenterName = firstSchedule.workCenterName || workCenters.find(wc => wc.id === workCenterId)?.name || `Máy #${workCenterId}`;
+        const workCenterName = firstSchedule.workCenterName || workCenters.find(wc => Number(wc.id) === Number(workCenterId))?.name || `Máy #${workCenterId}`;
 
         setSelectedScheduleId(firstSchedule.id);
         form.setFieldsValue({ workCenterId, workCenterName });
@@ -243,6 +294,42 @@ const WorkerScanner: React.FC = () => {
     };
   }, [scanning]);
 
+  // --- ĐỒNG BỘ DỮ LIỆU KHI CÓ MẠNG TRỞ LẠI ---
+  useEffect(() => {
+    const syncOfflineData = async () => {
+      if (!navigator.onLine) return;
+      try {
+        const offlineReports = await getOfflineReports();
+        if (offlineReports.length > 0) {
+          message.info(`Đang đồng bộ ngầm ${offlineReports.length} báo cáo offline...`);
+          for (const report of offlineReports) {
+            try {
+              await reportProgress(
+                report.orderId,
+                report.okQty,
+                report.ngQty,
+                report.workCenterId,
+                report.defectReason,
+                report.operatorName,
+                report.requestId // <-- Truyền UUID xuống API
+              );
+              await deleteOfflineReport(report.requestId);
+            } catch (err) {
+              console.error("Lỗi đồng bộ gói tin:", err);
+            }
+          }
+          message.success("Đã đồng bộ dữ liệu Offline thành công!");
+          if (scanData?.id) fetchWorkOrderDetail(scanData.id);
+        }
+      } catch (err) {
+        console.error("Lỗi truy xuất IndexedDB:", err);
+      }
+    };
+
+    window.addEventListener('online', syncOfflineData);
+    return () => window.removeEventListener('online', syncOfflineData);
+  }, [scanData]);
+
   const handleReport = async (values: any) => {
     if (!scanData) return;
     const operatorName = user?.fullName || user?.username;
@@ -278,16 +365,53 @@ const WorkerScanner: React.FC = () => {
         return;
       }
 
-      await reportProgress(
-        scanData.id,
-        values.okQty,
-        values.ngQty,
-        workCenterId,
-        values.defectReason,
-        operatorName
-      );
-      playFeedback('success');
-      message.success("ĐÃ GỬI BÁO CÁO THÀNH CÔNG!");
+      // 🔑 TẠO UUID CHO REQUEST (Idempotency Key)
+      const requestId = crypto.randomUUID();
+
+      // 🔑 TÁCH ONLINE/OFFLINE HANDLING
+      if (navigator.onLine) {
+        // Mode Online: Gửi ngay lên server
+        try {
+          await reportProgress(
+            scanData.id,
+            submitOk,
+            submitNg,
+            workCenterId,
+            values.defectReason,
+            operatorName,
+            requestId  // <-- Truyền UUID xuống API
+          );
+          playFeedback('success');
+          message.success("ĐÃ GỬI BÁO CÁO THÀNH CÔNG!");
+        } catch (err) {
+          // Nếu gửi thất bại khi online, vẫn lưu vào IndexedDB để retry sau
+          console.warn("Gửi báo cáo thất bại mặc dù online, lưu vào offline queue:", err);
+          await saveReportOffline({
+            requestId,
+            orderId: scanData.id,
+            okQty: submitOk,
+            ngQty: submitNg,
+            workCenterId,
+            defectReason: values.defectReason,
+            operatorName
+          });
+          message.warning("Báo cáo đã lưu. Sẽ tự động gửi khi kết nối ổn định.");
+          playFeedback('error');
+        }
+      } else {
+        // Mode Offline: Lưu vào IndexedDB
+        await saveReportOffline({
+          requestId,
+          orderId: scanData.id,
+          okQty: submitOk,
+          ngQty: submitNg,
+          workCenterId,
+          defectReason: values.defectReason,
+          operatorName
+        });
+        playFeedback('success');
+        message.success("Báo cáo lưu offline thành công! Sẽ tự động đồng bộ khi có mạng.");
+      }
 
       // 🔑 QUAN TRỌNG: Refetch chi tiết work order để cập nhật progress trên UI
       await fetchWorkOrderDetail(scanData.id);
@@ -304,7 +428,7 @@ const WorkerScanner: React.FC = () => {
       // Không reset scanData ngay - để hiển thị progress mới được cập nhật
     } catch (error: any) {
       playFeedback('error');
-      message.error(error.response?.data?.message || "Gửi báo cáo thất bại!");
+      message.error(error?.message || "Gửi báo cáo thất bại!");
     } finally {
       setLoading(false);
     }
@@ -320,13 +444,15 @@ const WorkerScanner: React.FC = () => {
     setNgQty(0);
     
     const currentOperator = form.getFieldValue('operatorName');
+    const currentWorkCenterId = form.getFieldValue('workCenterId');
+    const currentWorkCenterName = form.getFieldValue('workCenterName');
     form.resetFields();
     form.setFieldsValue({ 
       okQty: 0, 
       ngQty: 0,
       operatorName: currentOperator || user?.fullName || user?.username,
-      workCenterId: user?.workCenterId,
-      workCenterName: user?.workCenterName || workCenters.find(wc => Number(wc.id) === Number(user?.workCenterId))?.name || (user?.workCenterId ? `Máy #${user.workCenterId}` : undefined)
+      workCenterId: currentWorkCenterId || user?.workCenterId,
+      workCenterName: currentWorkCenterName || user?.workCenterName || workCenters.find(wc => Number(wc.id) === Number(user?.workCenterId))?.name || (user?.workCenterId ? `Máy #${user.workCenterId}` : undefined)
     });
   };
 
@@ -340,14 +466,19 @@ const WorkerScanner: React.FC = () => {
 
   // Compute displayed work center name, prioritizing form selection, scan data, work order, then user assignment
   const getDisplayedWorkCenterName = () => {
-    const assignedId = user?.workCenterId ?? null;
-    const assignedName = user?.workCenterName || workCenters.find(wc => Number(wc.id) === Number(assignedId))?.name;
-    const scannedName = scanData?.workCenterName || workOrderDetail?.workCenterName;
     const selectedName = form.getFieldValue('workCenterName');
-    // const selectedId = user?.workCenterId ?? form.getFieldValue('workCenterId') ?? workOrderDetail?.workCenterId ?? scanData?.workCenterId;
-    const selectedId = form.getFieldValue('workCenterName') ?? workCenters.find(wc => Number(wc.id) === Number(user?.workCenterId))?.name ?? (user?.workCenterId ? `Máy #${user.workCenterId}` : 'Đang tải...');
+    if (selectedName) return selectedName;
+    
+    const scannedName = scanData?.workCenterName || workOrderDetail?.workCenterName;
+    if (scannedName) return scannedName;
 
-    return selectedName || scannedName || assignedName || (selectedId ? `Máy #${selectedId}` : 'Đang tải máy đã gán...');
+    const selectedId = form.getFieldValue('workCenterId') || user?.workCenterId;
+    if (selectedId) {
+      const found = workCenters.find(wc => Number(wc.id) === Number(selectedId));
+      return found?.name || user?.workCenterName || `Máy #${selectedId}`;
+    }
+
+    return 'Chưa được gán (Vui lòng tải lại hoặc chọn máy)';
   };
 
   return (
@@ -362,8 +493,8 @@ const WorkerScanner: React.FC = () => {
           <div className="text-center">
             <div className="mb-4 rounded-xl border border-slate-200 bg-slate-50 p-3 text-sm text-left">
               <div className="flex items-center justify-between gap-3">
-                <span className="font-semibold text-slate-600">Máy được gán cho tài khoản</span>
-                <span className="font-bold text-slate-900">{user?.workCenterName || workCenters.find(wc => Number(wc.id) === Number(user?.workCenterId))?.name || (user?.workCenterId ? `Máy #${user.workCenterId}` : 'Đang tải...')}</span>
+                <span className="font-semibold text-slate-600">Trạm máy hiện tại</span>
+                <span className="font-bold text-slate-900">{getDisplayedWorkCenterName()}</span>
               </div>
             </div>
 

@@ -31,6 +31,7 @@ export const reportProgress = async (
   workCenterId: number, 
   defectReason?: string,
   operatorName?: string,
+  requestId?: string,  // UUID cho Idempotency
 ) => {
   const payload = {
     completedQuantity: okQty + ngQty, // Tổng sản lượng làm ra
@@ -39,6 +40,7 @@ export const reportProgress = async (
     workCenterId: workCenterId,
     defectReason: defectReason,
     operatorName: operatorName,
+    requestId: requestId,             // Truyền UUID để chống trùng lặp
   };
   
   return apiClient.patch(`/production/work-orders/${orderId}/progress`, payload);
