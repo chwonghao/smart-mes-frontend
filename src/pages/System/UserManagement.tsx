@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { Table, Tag, Button, Card, Space, message, Modal, Form, Input, Select, Popconfirm, Grid } from 'antd';
 import { UserAddOutlined, ReloadOutlined, KeyOutlined, DeleteOutlined } from '@ant-design/icons';
 import { getAllUsers, createUser, resetPassword, deleteUser } from '../../services/user.service';
+import { getWorkCenters } from '../../services/master-data.service';
 
 const { useBreakpoint } = Grid;
 
@@ -9,9 +10,11 @@ const UserManagement: React.FC = () => {
   const screens = useBreakpoint();
   const isMobile = !screens.md;
   const [users, setUsers] = useState<any[]>([]);
+  const [workCenters, setWorkCenters] = useState<any[]>([]);
   const [loading, setLoading] = useState(false);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [form] = Form.useForm();
+  const selectedRole = Form.useWatch('role', form);
 
   const fetchUsers = async () => {
     setLoading(true);
@@ -25,7 +28,25 @@ const UserManagement: React.FC = () => {
     }
   };
 
-  useEffect(() => { fetchUsers(); }, []);
+  const fetchWorkCenters = async () => {
+    try {
+      const data = await getWorkCenters();
+      setWorkCenters(data);
+    } catch {
+      message.error('Lỗi tải danh sách máy/khu làm việc!');
+    }
+  };
+
+  useEffect(() => {
+    fetchUsers();
+    fetchWorkCenters();
+  }, []);
+
+  useEffect(() => {
+    if (selectedRole !== 'ROLE_WORKER') {
+      form.setFieldsValue({ workCenterId: undefined });
+    }
+  }, [selectedRole, form]);
 
   const handleCreate = async (values: any) => {
     try {
@@ -80,6 +101,12 @@ const UserManagement: React.FC = () => {
         return <Tag color={color}>{text}</Tag>;
       }
     },
+    {
+      title: 'Khu làm việc',
+      dataIndex: 'workCenterName',
+      key: 'workCenterName',
+      render: (value: string | null, record: any) => record.role === 'ROLE_WORKER' ? (value || 'Chưa gán') : <Tag>Không áp dụng</Tag>
+    },
     { title: 'Mã Tenant', dataIndex: 'tenantId', key: 'tenantId' },
     {
       title: 'Thao tác',
@@ -132,6 +159,19 @@ const UserManagement: React.FC = () => {
               <Select.Option value="ROLE_WORKER">Công nhân sản xuất</Select.Option>
             </Select>
           </Form.Item>
+          {selectedRole === 'ROLE_WORKER' ? (
+            <Form.Item name="workCenterId" label="Khu làm việc / Máy làm việc" rules={[{ required: true, message: 'Vui lòng chọn khu làm việc!' }]}>
+              <Select placeholder="Chọn máy hoặc khu làm việc">
+                {workCenters.map((wc: any) => (
+                  <Select.Option key={wc.id} value={wc.id}>{wc.name} ({wc.code})</Select.Option>
+                ))}
+              </Select>
+            </Form.Item>
+          ) : (
+            <Form.Item label="Khu làm việc / Máy làm việc">
+              <Input disabled value="Không áp dụng cho vai trò này" />
+            </Form.Item>
+          )}
           <Form.Item name="tenantId" label="Mã Tenant" initialValue="TENANT_01">
             <Input />
           </Form.Item>

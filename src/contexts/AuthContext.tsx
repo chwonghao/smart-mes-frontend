@@ -7,6 +7,8 @@ export interface AuthUser {
   fullName: string;
   role: string;
   tenantId: string;
+  workCenterId?: number | null;
+  workCenterName?: string | null;
 }
 
 interface AuthContextType {

@@ -384,9 +384,11 @@ const WorkOrderList: React.FC = () => {
       title: 'Tiến độ',
       key: 'progress',
       render: (_: any, record: any) => {
-        const percent = record.quantityTarget > 0
-          ? Math.round((record.quantityCompleted / record.quantityTarget) * 100)
-          : 0;
+        const percent = typeof record.completionPercentage === 'number'
+          ? record.completionPercentage
+          : record.quantityTarget > 0
+            ? Math.round((record.quantityCompleted / record.quantityTarget) * 100)
+            : 0;
         return (
           <div style={{ width: 150 }}>
             <Progress percent={percent > 100 ? 100 : percent} size="small" />
@@ -404,7 +406,7 @@ const WorkOrderList: React.FC = () => {
           {record.estimatedEndTime && <div>Kết thúc: {dayjs(record.estimatedEndTime).format('HH:mm')}</div>}
         </div>
       ),
-      width: 120
+      width: 200
     }
   ];
 
@@ -519,7 +521,7 @@ const WorkOrderList: React.FC = () => {
         footer={[
           <Button key="close" type="primary" onClick={() => setHistoryModal({open: false})}>Đóng</Button>
         ]}
-        width={isMobile ? '96vw' : 700}
+        width={isMobile ? '96vw' : 800}
       >
         <Table 
           dataSource={logs} 
@@ -541,7 +543,7 @@ const WorkOrderList: React.FC = () => {
         footer={[
           <Button key="close" type="primary" onClick={() => setSchedulesModal({open: false})}>Đóng</Button>
         ]}
-        width={isMobile ? '96vw' : 900}
+        width={isMobile ? '96vw' : 1000}
       >
         <Table 
           dataSource={schedules} 

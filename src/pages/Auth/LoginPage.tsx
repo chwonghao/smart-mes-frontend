@@ -13,6 +13,8 @@ interface LoginResponse {
   fullName: string;
   role: string;
   tenantId: string;
+  workCenterId?: number | null;
+  workCenterName?: string | null;
 }
 
 const LoginPage: React.FC = () => {
@@ -31,6 +33,8 @@ const LoginPage: React.FC = () => {
         fullName: loginResponse.fullName,
         role: loginResponse.role,
         tenantId: loginResponse.tenantId,
+        workCenterId: loginResponse.workCenterId ?? null,
+        workCenterName: loginResponse.workCenterName ?? null,
       });
 
       message.success(`Chào mừng ${loginResponse.fullName} trở lại!`);

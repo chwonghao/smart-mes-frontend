@@ -19,6 +19,7 @@ export interface ProductionSchedule {
   sequenceNumber: number; // Thứ tự công đoạn
   quantityTarget: number; // Số lượng cần làm trên máy này
   quantityCompleted: number; // Số lượng đã làm
+  completionPercentage?: number; // % hoàn thành do backend tính sẵn
   status: 'PENDING' | 'IN_PROGRESS' | 'COMPLETED' | 'SKIPPED';
   estimatedStartTime?: string;
   estimatedEndTime?: string;

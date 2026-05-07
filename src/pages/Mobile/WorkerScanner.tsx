@@ -95,8 +95,17 @@ const WorkerScanner: React.FC = () => {
   }, [user, form]);
 
   useEffect(() => {
-    const workCenterId = scanData?.workCenterId ?? workOrderDetail?.workCenterId;
-    const workCenterName = scanData?.workCenterName ?? workOrderDetail?.workCenterName;
+    if (!user?.workCenterId) return;
+
+    form.setFieldsValue({
+      workCenterId: user.workCenterId,
+      workCenterName: user.workCenterName || workCenters.find(wc => wc.id === user.workCenterId)?.name || `Máy #${user.workCenterId}`
+    });
+  }, [user, workCenters, form]);
+
+  useEffect(() => {
+    const workCenterId = scanData?.workCenterId ?? workOrderDetail?.workCenterId ?? user?.workCenterId;
+    const workCenterName = scanData?.workCenterName ?? workOrderDetail?.workCenterName ?? user?.workCenterName;
 
     if (workCenterId) {
       form.setFieldsValue({ workCenterId });
@@ -105,7 +114,7 @@ const WorkerScanner: React.FC = () => {
     if (workCenterName || workCenterId) {
       form.setFieldsValue({ workCenterName: workCenterName || workCenters.find(wc => wc.id === workCenterId)?.name || `Máy #${workCenterId}` });
     }
-  }, [scanData, workOrderDetail, workCenters, form]);
+  }, [scanData, workOrderDetail, workCenters, user, form]);
 
   // Hàm fetch chi tiết work order và danh sách máy sản xuất
   const fetchWorkOrderDetail = async (orderId: number) => {
@@ -123,8 +132,8 @@ const WorkerScanner: React.FC = () => {
         setSelectedScheduleId(firstSchedule.id);
         form.setFieldsValue({ workCenterId, workCenterName });
       } else if (schedules && schedules.length > 1) {
-        // Nếu có nhiều máy, chọn máy đầu tiên
-        const firstSchedule = schedules[0];
+        const assignedSchedule = user?.workCenterId ? schedules.find(schedule => schedule.workCenterId === user.workCenterId) : undefined;
+        const firstSchedule = assignedSchedule || schedules[0];
         const workCenterId = firstSchedule.workCenterId;
         const workCenterName = firstSchedule.workCenterName || workCenters.find(wc => wc.id === workCenterId)?.name || `Máy #${workCenterId}`;
         
@@ -185,7 +194,7 @@ const WorkerScanner: React.FC = () => {
   const handleReport = async (values: any) => {
     if (!scanData) return;
     const operatorName = user?.fullName || user?.username;
-    const workCenterId = scanData.workCenterId ?? workOrderDetail?.workCenterId;
+    const workCenterId = scanData.workCenterId ?? workOrderDetail?.workCenterId ?? user?.workCenterId;
 
     if (!operatorName) {
       message.error('Không lấy được thông tin người dùng đăng nhập!');
@@ -317,7 +326,7 @@ const WorkerScanner: React.FC = () => {
             <div className="flex items-center justify-between gap-3 pt-2">
               <span className="font-semibold text-slate-600">Máy sản xuất</span>
               <span className="font-bold text-slate-900">
-                {scanData.workCenterName || workOrderDetail?.workCenterName || workCenters.find(wc => wc.id === (scanData.workCenterId ?? workOrderDetail?.workCenterId))?.name || (workOrderDetail?.workCenterId ? `Máy #${workOrderDetail.workCenterId}` : 'Đang tải...')}
+                {scanData.workCenterName || workOrderDetail?.workCenterName || user?.workCenterName || workCenters.find(wc => wc.id === (scanData.workCenterId ?? workOrderDetail?.workCenterId ?? user?.workCenterId))?.name || (workOrderDetail?.workCenterId || user?.workCenterId ? `Máy #${workOrderDetail?.workCenterId ?? user?.workCenterId}` : 'Đang tải...')}
               </span>
             </div>
           </div>
