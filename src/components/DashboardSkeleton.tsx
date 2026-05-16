@@ -23,49 +23,46 @@ const DashboardSkeleton: React.FC = () => {
 
       {/* Andon Card Skeleton */}
       <Card title={<Skeleton paragraph={{ rows: 0, width: '40%' }} active />} className="shadow-sm">
-        <Row gutter={[12, 12]}>
+        <div className="overflow-x-auto pb-2">
+          <div className="flex min-w-max flex-nowrap gap-3">
           {Array.from({ length: 8 }).map((_, idx) => (
-            <Col xs={24} sm={12} md={8} lg={6} key={idx}>
+            <div key={idx} className="w-55 shrink-0">
               <div className="rounded-xl border-2 border-slate-300 p-3 bg-slate-100">
                 <Skeleton paragraph={{ rows: 2 }} active />
               </div>
-            </Col>
+            </div>
           ))}
-        </Row>
+          </div>
+        </div>
       </Card>
 
       {/* Charts Skeleton */}
       <Row gutter={[16, 16]} className="mt-4">
         <Col xs={24} lg={16} className="space-y-6">
-          {/* Inventory Chart */}
-          <Card 
-            title={<Skeleton paragraph={{ rows: 0, width: '30%' }} active />} 
-            className="shadow-sm"
-          >
-            <div className="h-75">
-              <Skeleton paragraph={{ rows: 5 }} active />
-            </div>
-          </Card>
-
-          {/* Quality Chart */}
-          <Card 
-            title={<Skeleton paragraph={{ rows: 0, width: '25%' }} active />} 
-            className="shadow-sm"
-          >
-            <div style={{ height: 250 }}>
-              <Skeleton paragraph={{ rows: 5 }} active />
-            </div>
-          </Card>
-
-          {/* Production Trend Chart */}
-          <Card
-            title={<Skeleton paragraph={{ rows: 0, width: '35%' }} active />}
-            className="shadow-sm"
-          >
-            <div style={{ height: 250 }}>
-              <Skeleton paragraph={{ rows: 5 }} active />
-            </div>
-          </Card>
+          <Row gutter={[16, 16]}>
+            {Array.from({ length: 4 }).map((_, idx) => (
+              <Col xs={24} xl={12} key={idx}>
+                <Card
+                  title={<Skeleton paragraph={{ rows: 0, width: idx % 2 === 0 ? '30%' : '40%' }} active />}
+                  className="shadow-sm"
+                >
+                  <div style={{ height: idx === 0 ? 288 : 260 }}>
+                    <Skeleton paragraph={{ rows: 5 }} active />
+                  </div>
+                </Card>
+              </Col>
+            ))}
+            <Col xs={24}>
+              <Card
+                title={<Skeleton paragraph={{ rows: 0, width: '35%' }} active />}
+                className="shadow-sm"
+              >
+                <div style={{ height: 260 }}>
+                  <Skeleton paragraph={{ rows: 5 }} active />
+                </div>
+              </Card>
+            </Col>
+          </Row>
         </Col>
 
         {/* Alerts Skeleton */}

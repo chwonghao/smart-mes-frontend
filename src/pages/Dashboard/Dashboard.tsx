@@ -36,6 +36,7 @@ interface DashboardStats {
 interface MachineStats {
   total: number;
   running: number;
+  maintenance: number;
   down: number;
   idle: number;
   offline: number;
@@ -48,11 +49,68 @@ interface AlertFeed {
   createdAt: string;
 }
 
+const MACHINE_STATUS_PRIORITY: Record<string, number> = {
+  RUNNING: 0,
+  MAINTENANCE: 1,
+  DOWN: 2,
+  IDLE: 3,
+  OFFLINE: 4,
+  UNKNOWN: 5,
+};
+
+const MACHINE_STATUS_META: Record<string, { label: string; color: string; className: string }> = {
+  RUNNING: { label: 'RUNNING', color: 'green', className: 'border-green-600 bg-green-50 dark:bg-green-900 dark:border-green-500' },
+  MAINTENANCE: { label: 'MAINTENANCE', color: 'blue', className: 'border-blue-500 bg-blue-50 dark:bg-blue-900 dark:border-blue-400' },
+  DOWN: { label: 'DOWN', color: 'red', className: 'border-red-600 bg-red-100 dark:bg-red-900 dark:border-red-500 animate-pulse' },
+  IDLE: { label: 'IDLE', color: 'gold', className: 'border-yellow-500 bg-yellow-50 dark:bg-yellow-900 dark:border-yellow-400' },
+  OFFLINE: { label: 'OFFLINE', color: 'default', className: 'border-slate-400 bg-slate-100 dark:bg-slate-700 dark:border-slate-500 opacity-80' },
+  UNKNOWN: { label: 'UNKNOWN', color: 'blue', className: 'border-slate-300 bg-white dark:bg-slate-800 dark:border-slate-600' },
+};
+
+const WORK_ORDER_STATUS_LABELS: Record<string, string> = {
+  DRAFT: 'Nháp',
+  RELEASED: 'Đã phát hành',
+  IN_PROGRESS: 'Đang chạy',
+  COMPLETED: 'Hoàn thành',
+  CANCELLED: 'Đã hủy',
+};
+
+const WORK_ORDER_STATUS_COLORS: Record<string, string> = {
+  DRAFT: '#64748b',
+  RELEASED: '#0ea5e9',
+  IN_PROGRESS: '#3b82f6',
+  COMPLETED: '#16a34a',
+  CANCELLED: '#ef4444',
+};
+
+const ALERT_TYPE_LABELS: Record<string, string> = {
+  MACHINE_DOWN: 'Sự cố máy',
+  QC_ALERT: 'Cảnh báo QC',
+  INVENTORY_ALERT: 'Cảnh báo kho',
+  SETTINGS_UPDATED: 'Cập nhật cấu hình',
+  NEW_ORDER: 'Lệnh mới',
+  PROGRESS_UPDATED: 'Tiến độ mới',
+  INVENTORY_UPDATED: 'Tồn kho cập nhật',
+};
+
+const ALERT_TYPE_COLORS: Record<string, string> = {
+  MACHINE_DOWN: '#ef4444',
+  QC_ALERT: '#f59e0b',
+  INVENTORY_ALERT: '#0ea5e9',
+  SETTINGS_UPDATED: '#8b5cf6',
+  NEW_ORDER: '#14b8a6',
+  PROGRESS_UPDATED: '#3b82f6',
+  INVENTORY_UPDATED: '#22c55e',
+};
+
 const Dashboard: React.FC = () => {
   const [stats, setStats] = useState<DashboardStats | null>(null);
-  const [machineStats, setMachineStats] = useState<MachineStats>({ total: 0, running: 0, down: 0, idle: 0, offline: 0 });
+  const [machineStats, setMachineStats] = useState<MachineStats>({ total: 0, running: 0, maintenance: 0, down: 0, idle: 0, offline: 0 });
   const [machines, setMachines] = useState<any[]>([]);
   const [productionTrend, setProductionTrend] = useState<Array<{ name: string; quantity: number }>>([]);
+  const [workOrderStatusChartData, setWorkOrderStatusChartData] = useState<Array<{ name: string; value: number; color: string }>>([]);
+  const [machineStatusChartData, setMachineStatusChartData] = useState<Array<{ name: string; value: number; color: string }>>([]);
+  const [alertTypeChartData, setAlertTypeChartData] = useState<Array<{ name: string; value: number; color: string }>>([]);
   const [alerts, setAlerts] = useState<AlertFeed[]>([]);
   const [loading, setLoading] = useState<boolean>(true);
   const { settings } = useSettings();
@@ -77,12 +135,32 @@ const Dashboard: React.FC = () => {
       setMachineStats({
         total: centers?.length || 0,
         running: centers?.filter((c: any) => c.currentStatus === 'RUNNING').length || 0,
+        maintenance: centers?.filter((c: any) => c.currentStatus === 'MAINTENANCE').length || 0,
         down: centers?.filter((c: any) => c.currentStatus === 'DOWN').length || 0,
         idle: centers?.filter((c: any) => !c.currentStatus || c.currentStatus === 'IDLE').length || 0,
         offline: centers?.filter((c: any) => c.currentStatus === 'OFFLINE').length || 0,
       });
 
       const workOrders = (workOrdersRes as any[]) || [];
+      const workOrderStatusOrder = ['DRAFT', 'RELEASED', 'IN_PROGRESS', 'COMPLETED', 'CANCELLED'];
+      setWorkOrderStatusChartData(
+        workOrderStatusOrder
+          .map((status) => ({
+            name: WORK_ORDER_STATUS_LABELS[status] || status,
+            value: workOrders.filter((order: any) => order.status === status).length,
+            color: WORK_ORDER_STATUS_COLORS[status] || '#64748b',
+          }))
+          .filter((item) => item.value > 0)
+      );
+
+      setMachineStatusChartData([
+        { name: 'Đang chạy', value: centers?.filter((c: any) => c.currentStatus === 'RUNNING').length || 0, color: '#16a34a' },
+        { name: 'Bảo trì', value: centers?.filter((c: any) => c.currentStatus === 'MAINTENANCE').length || 0, color: '#0ea5e9' },
+        { name: 'Hỏng', value: centers?.filter((c: any) => c.currentStatus === 'DOWN').length || 0, color: '#ef4444' },
+        { name: 'Rảnh', value: centers?.filter((c: any) => !c.currentStatus || c.currentStatus === 'IDLE').length || 0, color: '#eab308' },
+        { name: 'Offline', value: centers?.filter((c: any) => c.currentStatus === 'OFFLINE').length || 0, color: '#64748b' },
+      ].filter((item) => item.value > 0));
+
       const trend = [
         { name: 'Đang sản xuất', quantity: workOrders.filter((o: any) => o.status === 'IN_PROGRESS').length },
         { name: 'Hoàn thành', quantity: workOrders.filter((o: any) => o.status === 'COMPLETED').length },
@@ -90,7 +168,22 @@ const Dashboard: React.FC = () => {
       ];
       setProductionTrend(trend);
 
-      setAlerts((alertsRes as AlertFeed[]) || []);
+      const alertList = (alertsRes as AlertFeed[]) || [];
+      setAlerts(alertList);
+      setAlertTypeChartData(
+        Object.entries(
+          alertList.reduce<Record<string, number>>((acc, alert) => {
+            acc[alert.alertType] = (acc[alert.alertType] || 0) + 1;
+            return acc;
+          }, {})
+        )
+          .sort((left, right) => right[1] - left[1])
+          .map(([alertType, value]) => ({
+            name: ALERT_TYPE_LABELS[alertType] || alertType,
+            value,
+            color: ALERT_TYPE_COLORS[alertType] || '#64748b',
+          }))
+      );
     } catch (error) {
       message.error("Không thể tải dữ liệu Dashboard. Vui lòng thử lại!");
     } finally {
@@ -175,23 +268,16 @@ const Dashboard: React.FC = () => {
     name: key, quantity: value
   }));
 
-  const passRate = Math.max(0, Number((100 - defectRate).toFixed(1)));
-  const ngRate = Math.max(0, Number(defectRate.toFixed(1)));
-
-  const qualityChartData = [
-    { name: 'PASS', value: passRate, color: '#16a34a' },
-    { name: 'NG', value: ngRate, color: '#ef4444' },
-  ];
-
-  const getMachineCardClass = (status: string) => {
-    switch (status) {
-      case 'RUNNING': return 'border-green-600 bg-green-50 dark:bg-green-900 dark:border-green-500';
-      case 'DOWN': return 'border-red-600 bg-red-100 dark:bg-red-900 dark:border-red-500 animate-pulse';
-      case 'IDLE': return 'border-yellow-500 bg-yellow-50 dark:bg-yellow-900 dark:border-yellow-400';
-      case 'OFFLINE': return 'border-slate-400 bg-slate-100 dark:bg-slate-700 dark:border-slate-500 opacity-80';
-      default: return 'border-slate-300 bg-white dark:bg-slate-800 dark:border-slate-600';
+  const sortedMachines = [...machines].sort((left, right) => {
+    const leftStatus = left.currentStatus || 'UNKNOWN';
+    const rightStatus = right.currentStatus || 'UNKNOWN';
+    const priorityDelta = (MACHINE_STATUS_PRIORITY[leftStatus] ?? 99) - (MACHINE_STATUS_PRIORITY[rightStatus] ?? 99);
+    if (priorityDelta !== 0) {
+      return priorityDelta;
     }
-  };
+
+    return String(left.name || '').localeCompare(String(right.name || ''));
+  });
 
   return (
     <div className="space-y-6 animate-fade-in dark:bg-slate-900 dark:text-gray-100">
@@ -233,7 +319,8 @@ const Dashboard: React.FC = () => {
               prefix={<SettingOutlined className="text-green-500 mr-2" spin={machineStats.running > 0} />} 
               valueStyle={{ color: '#10b981', fontSize: '1.8rem', fontWeight: 'bold' }}
             />
-            <div className="mt-2 flex gap-2 text-xs">
+            <div className="mt-2 flex flex-wrap gap-2 text-xs">
+              <Badge status="processing" text={`${machineStats.maintenance} Bảo trì`} />
               <Badge status="error" text={`${machineStats.down} Đang hỏng`} />
               <Badge status="default" text={`${machineStats.idle} Rảnh rỗi`} />
               <Badge status="default" text={`${machineStats.offline} Offline`} />
@@ -271,87 +358,147 @@ const Dashboard: React.FC = () => {
         title={<div className="flex items-center gap-2"><ToolOutlined className="text-slate-700 dark:text-slate-300" /><span className="font-bold dark:text-gray-100">Andon ảo: Trạng thái máy theo thời gian thực</span></div>}
         className="shadow-sm dark:bg-slate-800"
       >
-        <Row gutter={[12, 12]}>
-          {machines.map((machine) => (
-            <Col xs={24} sm={12} md={8} lg={6} key={machine.id}>
-              <div className={`rounded-xl border-2 p-3 ${getMachineCardClass(machine.currentStatus)}`}>
-                <div className="font-bold text-base truncate">{machine.name}</div>
-                <div className="text-xs text-gray-500 mb-2">{machine.code}</div>
-                <Tag color={
-                  machine.currentStatus === 'RUNNING' ? 'green' :
-                  machine.currentStatus === 'DOWN' ? 'red' :
-                  machine.currentStatus === 'IDLE' ? 'gold' :
-                  machine.currentStatus === 'OFFLINE' ? 'default' : 'blue'
-                }>
-                  {machine.currentStatus || 'UNKNOWN'}
-                </Tag>
-              </div>
-            </Col>
-          ))}
-        </Row>
+        <div className="overflow-x-auto pb-2">
+          <div className="flex min-w-max flex-nowrap gap-3 snap-x snap-mandatory">
+            {sortedMachines.map((machine) => {
+              const statusKey = machine.currentStatus || 'UNKNOWN';
+              const statusMeta = MACHINE_STATUS_META[statusKey] || MACHINE_STATUS_META.UNKNOWN;
+
+              return (
+                <div key={machine.id} className="w-55 shrink-0 snap-start">
+                  <div className={`rounded-xl border-2 p-3 h-full ${statusMeta.className}`}>
+                    <div className="font-bold text-base truncate">{machine.name}</div>
+                    <div className="text-xs text-gray-500 mb-2">{machine.code}</div>
+                    <div className="flex items-center justify-between gap-2">
+                      <Tag color={statusMeta.color} className="m-0 border-0 font-bold">
+                        {statusMeta.label}
+                      </Tag>
+                      <span className="text-[11px] text-gray-400 truncate">#{machine.id}</span>
+                    </div>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </div>
       </Card>
 
       <Row gutter={[16, 16]} className="mt-4">
         <Col xs={24} lg={16} className="space-y-6">
-          <Card 
-            title={<div className="flex items-center gap-2"><BuildOutlined className="text-blue-600 dark:text-blue-400" /><span className="font-bold dark:text-gray-100">Top 5 Vật tư Tồn kho lớn nhất</span></div>} 
-            className="shadow-sm dark:bg-slate-800"
-          >
-            {inventoryChartData.length > 0 ? (
-              <div className="h-75">
-                <ResponsiveContainer width="100%" height="100%">
-                  <BarChart data={inventoryChartData} margin={{ top: 20, right: 30, left: 20, bottom: 5 }}>
-                    <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#e2e8f0" />
-                    <XAxis dataKey="name" tick={{ fill: '#64748b' }} axisLine={false} tickLine={false} />
-                    <YAxis tick={{ fill: '#64748b' }} axisLine={false} tickLine={false} />
-                    <RechartsTooltip cursor={{ fill: '#f1f5f9' }} contentStyle={{ borderRadius: '8px', border: 'none', boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)' }}/>
-                    <Bar dataKey="quantity" name="Số lượng" fill="#3b82f6" radius={[4, 4, 0, 0]} barSize={50} />
-                  </BarChart>
-                </ResponsiveContainer>
-              </div>
-            ) : (
-              <div className="flex h-75 items-center justify-center text-gray-400">Chưa có dữ liệu tồn kho</div>
-            )}
-          </Card>
+          <Row gutter={[16, 16]}>
+            <Col xs={24} xl={12}>
+              <Card
+                title={<div className="flex items-center gap-2"><BuildOutlined className="text-blue-600 dark:text-blue-400" /><span className="font-bold dark:text-gray-100">Top 5 Vật tư Tồn kho lớn nhất</span></div>}
+                className="shadow-sm dark:bg-slate-800"
+              >
+                {inventoryChartData.length > 0 ? (
+                  <div className="h-72">
+                    <ResponsiveContainer width="100%" height="100%">
+                      <BarChart data={inventoryChartData} margin={{ top: 20, right: 24, left: 8, bottom: 5 }}>
+                        <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#e2e8f0" />
+                        <XAxis dataKey="name" tick={{ fill: '#64748b' }} axisLine={false} tickLine={false} />
+                        <YAxis tick={{ fill: '#64748b' }} axisLine={false} tickLine={false} />
+                        <RechartsTooltip cursor={{ fill: '#f1f5f9' }} contentStyle={{ borderRadius: '8px', border: 'none', boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)' }}/>
+                        <Bar dataKey="quantity" name="Số lượng" fill="#3b82f6" radius={[4, 4, 0, 0]} barSize={46} />
+                      </BarChart>
+                    </ResponsiveContainer>
+                  </div>
+                ) : (
+                  <div className="flex h-72 items-center justify-center text-gray-400">Chưa có dữ liệu tồn kho</div>
+                )}
+              </Card>
+            </Col>
 
-          <Card 
-            title={<div className="flex items-center gap-2"><AppstoreOutlined className="text-purple-600 dark:text-purple-400" /><span className="font-bold dark:text-gray-100">Tỷ lệ Pass / NG</span></div>} 
-            className="shadow-sm dark:bg-slate-800"
-          >
-            <div style={{ height: 250 }}>
-              <ResponsiveContainer width="100%" height="100%">
-                <PieChart>
-                  <Pie
-                    data={qualityChartData}
-                    cx="50%" cy="50%" innerRadius={70} outerRadius={100} paddingAngle={5} dataKey="value"
-                  >
-                    {qualityChartData.map((entry, index) => (
-                      <Cell key={`cell-${index}`} fill={entry.color} stroke="none" />
-                    ))}
-                  </Pie>
-                  <RechartsTooltip contentStyle={{ borderRadius: '8px', border: 'none', boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)' }}/>
-                  <Legend verticalAlign="middle" align="right" layout="vertical" iconType="circle" />
-                </PieChart>
-              </ResponsiveContainer>
-            </div>
-          </Card>
+            <Col xs={24} xl={12}>
+              <Card
+                title={<div className="flex items-center gap-2"><AppstoreOutlined className="text-purple-600 dark:text-purple-400" /><span className="font-bold dark:text-gray-100">Phân bố trạng thái Lệnh sản xuất</span></div>}
+                className="shadow-sm dark:bg-slate-800"
+              >
+                <div style={{ height: 288 }}>
+                  <ResponsiveContainer width="100%" height="100%">
+                    <PieChart>
+                      <Pie
+                        data={workOrderStatusChartData}
+                        cx="50%" cy="50%" innerRadius={68} outerRadius={102} paddingAngle={4} dataKey="value"
+                      >
+                        {workOrderStatusChartData.map((entry) => (
+                          <Cell key={entry.name} fill={entry.color} stroke="none" />
+                        ))}
+                      </Pie>
+                      <RechartsTooltip contentStyle={{ borderRadius: '8px', border: 'none', boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)' }}/>
+                      <Legend verticalAlign="middle" align="right" layout="vertical" iconType="circle" />
+                    </PieChart>
+                  </ResponsiveContainer>
+                </div>
+              </Card>
+            </Col>
 
-          <Card
-            title={<div className="flex items-center gap-2"><SyncOutlined className="text-emerald-600 dark:text-emerald-400" /><span className="font-bold dark:text-gray-100">Sản lượng theo ca/nhịp (mô phỏng theo trạng thái lệnh)</span></div>}
-            className="shadow-sm dark:bg-slate-800"
-          >
-            <div style={{ height: 250 }}>
-              <ResponsiveContainer width="100%" height="100%">
-                <LineChart data={productionTrend} margin={{ top: 20, right: 20, left: 0, bottom: 0 }}>
-                  <CartesianGrid strokeDasharray="3 3" />
-                  <XAxis dataKey="name" />
-                  <YAxis />
-                  <RechartsTooltip />
-                  <Line type="monotone" dataKey="quantity" stroke="#2563eb" strokeWidth={3} dot={{ r: 5 }} />
-                </LineChart>
-              </ResponsiveContainer>
-            </div>
-          </Card>
+            <Col xs={24} xl={12}>
+              <Card
+                title={<div className="flex items-center gap-2"><SettingOutlined className="text-emerald-600 dark:text-emerald-400" /><span className="font-bold dark:text-gray-100">Phân bố trạng thái Máy móc</span></div>}
+                className="shadow-sm dark:bg-slate-800"
+              >
+                <div style={{ height: 288 }}>
+                  <ResponsiveContainer width="100%" height="100%">
+                    <BarChart data={machineStatusChartData} layout="vertical" margin={{ top: 20, right: 16, left: 24, bottom: 0 }}>
+                      <CartesianGrid strokeDasharray="3 3" horizontal={false} stroke="#e2e8f0" />
+                      <XAxis type="number" allowDecimals={false} tick={{ fill: '#64748b' }} axisLine={false} tickLine={false} />
+                      <YAxis type="category" dataKey="name" width={86} tick={{ fill: '#64748b' }} axisLine={false} tickLine={false} />
+                      <RechartsTooltip contentStyle={{ borderRadius: '8px', border: 'none', boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)' }}/>
+                      <Bar dataKey="value" name="Số máy" radius={[0, 8, 8, 0]} barSize={18}>
+                        {machineStatusChartData.map((entry) => (
+                          <Cell key={entry.name} fill={entry.color} />
+                        ))}
+                      </Bar>
+                    </BarChart>
+                  </ResponsiveContainer>
+                </div>
+              </Card>
+            </Col>
+
+            <Col xs={24} xl={12}>
+              <Card
+                title={<div className="flex items-center gap-2"><WarningOutlined className="text-orange-500" /><span className="font-bold dark:text-gray-100">Bảng phân bố Cảnh báo theo loại</span></div>}
+                className="shadow-sm dark:bg-slate-800"
+              >
+                <div style={{ height: 288 }}>
+                  <ResponsiveContainer width="100%" height="100%">
+                    <PieChart>
+                      <Pie
+                        data={alertTypeChartData}
+                        cx="50%" cy="50%" innerRadius={62} outerRadius={100} paddingAngle={4} dataKey="value"
+                      >
+                        {alertTypeChartData.map((entry) => (
+                          <Cell key={entry.name} fill={entry.color} stroke="none" />
+                        ))}
+                      </Pie>
+                      <RechartsTooltip contentStyle={{ borderRadius: '8px', border: 'none', boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)' }}/>
+                      <Legend verticalAlign="middle" align="right" layout="vertical" iconType="circle" />
+                    </PieChart>
+                  </ResponsiveContainer>
+                </div>
+              </Card>
+            </Col>
+
+            <Col xs={24}>
+              <Card
+                title={<div className="flex items-center gap-2"><SyncOutlined className="text-emerald-600 dark:text-emerald-400" /><span className="font-bold dark:text-gray-100">Sản lượng theo ca/nhịp (mô phỏng theo trạng thái lệnh)</span></div>}
+                className="shadow-sm dark:bg-slate-800"
+              >
+                <div style={{ height: 260 }}>
+                  <ResponsiveContainer width="100%" height="100%">
+                    <LineChart data={productionTrend} margin={{ top: 20, right: 20, left: 0, bottom: 0 }}>
+                      <CartesianGrid strokeDasharray="3 3" />
+                      <XAxis dataKey="name" />
+                      <YAxis />
+                      <RechartsTooltip />
+                      <Line type="monotone" dataKey="quantity" stroke="#2563eb" strokeWidth={3} dot={{ r: 5 }} />
+                    </LineChart>
+                  </ResponsiveContainer>
+                </div>
+              </Card>
+            </Col>
+          </Row>
         </Col>
 
         <Col xs={24} lg={8}>

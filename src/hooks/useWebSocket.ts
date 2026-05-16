@@ -7,10 +7,11 @@ import SockJS from 'sockjs-client';
 export const useWebSocket = (topic: string) => {
   const [notifications, setNotifications] = useState<any[]>([]);
   const [unreadCount, setUnreadCount] = useState(0);
+  const wsUrl = import.meta.env.VITE_WS_URL || '/ws-mes';
 
   useEffect(() => {
     const client = new Client({
-      webSocketFactory: () => new SockJS(import.meta.env.VITE_WS_URL),
+      webSocketFactory: () => new SockJS(wsUrl),
       
       // HttpOnly cookie sẽ tự động được gửi qua SockJS
       // Không cần set Authorization header nữa
@@ -72,7 +73,7 @@ export const useWebSocket = (topic: string) => {
         void client.deactivate();
       }
     };
-  }, [topic]);
+  }, [topic, wsUrl]);
 
   const clearCount = () => setUnreadCount(0);
 
