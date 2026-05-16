@@ -4,4 +4,3 @@ dist
 .idea
 *.log
 Dockerfile
-nginx.conf
