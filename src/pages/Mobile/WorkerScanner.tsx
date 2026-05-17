@@ -144,25 +144,49 @@ const WorkerScanner: React.FC = () => {
     const remaining = typeof allowed === 'number' && isFinite(allowed) ? Math.max(0, allowed - otherValue) : Infinity;
 
     return (
-      <div className={`rounded-xl border-2 p-3 ${isPass ? 'border-green-600 bg-green-50' : 'border-red-600 bg-red-50'}`}>
-        <div className={`mb-2 text-sm font-bold ${isPass ? 'text-green-700' : 'text-red-700'}`}>
+      <div className={`rounded-xl border-2 p-4 ${isPass ? 'border-green-600 bg-green-50' : 'border-red-600 bg-red-50'}`}>
+        <div className={`mb-3 text-base font-bold ${isPass ? 'text-green-700' : 'text-red-700'}`}>
           {isPass ? 'SẢN LƯỢNG ĐẠT (PASS)' : 'HÀNG LỖI (FAIL/NG)'}
         </div>
 
-        <div className="flex items-center gap-3 mb-3">
-          <Button className="h-12 w-16 text-2xl font-bold" onClick={() => adjustQty(field, -1)} disabled={!prevReady || value <= 0}>-</Button>
-          <div className={`flex-1 h-16 rounded-lg border text-center text-3xl font-black leading-[3.8rem] ${isPass ? 'border-green-700 text-green-700 bg-white' : 'border-red-700 text-red-700 bg-white'}`}>
+        <div className="flex items-center gap-2 mb-2">
+          <Button
+            onClick={() => adjustQty(field, -1)}
+            disabled={!prevReady || value <= 0}
+            style={{ height: 80, width: 96, fontSize: 32, padding: 0 }}
+            className="rounded-xl"
+          >
+            -
+          </Button>
+
+          <div className={`flex-1 h-20 rounded-lg border text-center text-4xl font-black flex items-center justify-center ${isPass ? 'border-green-700 text-green-700 bg-white' : 'border-red-700 text-red-700 bg-white'}`}>
             {value}
           </div>
-          <Button className="h-12 w-16 text-2xl font-bold" onClick={() => adjustQty(field, 1)} disabled={!prevReady || (typeof remaining === 'number' && remaining <= 0)}>+</Button>
+
+          <Button
+            onClick={() => adjustQty(field, 1)}
+            disabled={!prevReady || (typeof remaining === 'number' && remaining <= 0)}
+            style={{ height: 80, width: 96, fontSize: 32, padding: 0 }}
+            className="rounded-xl"
+          >
+            +
+          </Button>
         </div>
 
         <div className="grid grid-cols-5 gap-2">
-          <Button className="h-10 text-base font-bold" onClick={() => { if (prevReady) { if (field === 'okQty') { setOkQty(0); form.setFieldsValue({ okQty: 0 }); } else { setNgQty(0); form.setFieldsValue({ ngQty: 0 }); } } }} disabled={!prevReady}>0</Button>
-          <Button className="h-10 text-base font-bold" onClick={() => adjustQty(field, 5)} disabled={!prevReady || (typeof remaining === 'number' && remaining <= 0)}>+5</Button>
-          <Button className="h-10 text-base font-bold" onClick={() => adjustQty(field, 10)} disabled={!prevReady || (typeof remaining === 'number' && remaining <= 0)}>+10</Button>
-          <Button className="h-10 text-base font-bold" onClick={() => adjustQty(field, 20)} disabled={!prevReady || (typeof remaining === 'number' && remaining <= 0)}>+20</Button>
-          <Button className="h-10 text-base font-bold" onClick={() => adjustQty(field, 50)} disabled={!prevReady || (typeof remaining === 'number' && remaining <= 0)}>+50</Button>
+          <Button
+            onClick={() => { if (prevReady) { if (field === 'okQty') { setOkQty(0); form.setFieldsValue({ okQty: 0 }); } else { setNgQty(0); form.setFieldsValue({ ngQty: 0 }); } } }}
+            disabled={!prevReady}
+            style={{ height: 56, fontSize: 16, padding: '0 12px' }}
+            className="rounded-md font-bold"
+          >
+            0
+          </Button>
+
+          <Button style={{ height: 56, fontSize: 16, padding: '0 4px' }} className="rounded-md font-bold" onClick={() => adjustQty(field, 5)} disabled={!prevReady || (typeof remaining === 'number' && remaining <= 0)}>+5</Button>
+          <Button style={{ height: 56, fontSize: 16, padding: '0 4px' }} className="rounded-md font-bold" onClick={() => adjustQty(field, 10)} disabled={!prevReady || (typeof remaining === 'number' && remaining <= 0)}>+10</Button>
+          <Button style={{ height: 56, fontSize: 16, padding: '0 4px' }} className="rounded-md font-bold" onClick={() => adjustQty(field, 20)} disabled={!prevReady || (typeof remaining === 'number' && remaining <= 0)}>+20</Button>
+          <Button style={{ height: 56, fontSize: 16, padding: '0 4px' }} className="rounded-md font-bold" onClick={() => adjustQty(field, 50)} disabled={!prevReady || (typeof remaining === 'number' && remaining <= 0)}>+50</Button>
         </div>
 
         {typeof remaining === 'number' && isFinite(remaining) && (
@@ -202,7 +226,7 @@ const WorkerScanner: React.FC = () => {
   useEffect(() => {
     const currentWcId = form.getFieldValue('workCenterId');
     const workCenterId = currentWcId ?? scanData?.workCenterId ?? workOrderDetail?.workCenterId ?? user?.workCenterId;
-    
+
     const currentWcName = form.getFieldValue('workCenterName');
     const workCenterName = currentWcName ?? scanData?.workCenterName ?? workOrderDetail?.workCenterName ?? user?.workCenterName;
 
@@ -359,6 +383,12 @@ const WorkerScanner: React.FC = () => {
       const submitNg = values.ngQty ?? ngQty ?? 0;
       const totalSubmitting = submitOk + submitNg;
 
+      if (totalSubmitting <= 0) {
+        message.error('Vui lòng nhập số lượng trước khi gửi báo cáo.');
+        setLoading(false);
+        return;
+      }
+
       if (typeof allowed === 'number' && isFinite(allowed) && totalSubmitting > allowed) {
         message.error(`Tổng số lượng (${totalSubmitting}) vượt quá lượng cho phép từ bước trước (${allowed}).`);
         setLoading(false);
@@ -418,7 +448,7 @@ const WorkerScanner: React.FC = () => {
 
       setOkQty(0);
       setNgQty(0);
-      
+
       // Thay vì form.resetFields() làm mất các trường ẩn (workCenterId, operatorName), chỉ xóa các trường vừa nhập
       form.setFieldsValue({
         okQty: 0,
@@ -442,13 +472,13 @@ const WorkerScanner: React.FC = () => {
     setSelectedScheduleId(null);
     setOkQty(0);
     setNgQty(0);
-    
+
     const currentOperator = form.getFieldValue('operatorName');
     const currentWorkCenterId = form.getFieldValue('workCenterId');
     const currentWorkCenterName = form.getFieldValue('workCenterName');
     form.resetFields();
-    form.setFieldsValue({ 
-      okQty: 0, 
+    form.setFieldsValue({
+      okQty: 0,
       ngQty: 0,
       operatorName: currentOperator || user?.fullName || user?.username,
       workCenterId: currentWorkCenterId || user?.workCenterId,
@@ -464,11 +494,13 @@ const WorkerScanner: React.FC = () => {
     return planned > 0 ? Math.round((actual / planned) * 100) : 0;
   };
 
+  const canSubmitReport = isPrevReady() && (okQty + ngQty > 0);
+
   // Compute displayed work center name, prioritizing form selection, scan data, work order, then user assignment
   const getDisplayedWorkCenterName = () => {
     const selectedName = form.getFieldValue('workCenterName');
     if (selectedName) return selectedName;
-    
+
     const scannedName = scanData?.workCenterName || workOrderDetail?.workCenterName;
     if (scannedName) return scannedName;
 
@@ -536,21 +568,23 @@ const WorkerScanner: React.FC = () => {
           {workOrderDetail && (
             <div className="mb-4 p-3 bg-blue-50 rounded-md border border-blue-200">
               <div className="flex justify-between items-center mb-2">
-                <span className="text-sm font-semibold text-gray-700">Tiến độ Lệnh sản xuất hiện tại</span>
-                <span className="text-lg font-bold text-blue-600">{calculateProgress()}%</span>
+                <span className="w-30 text-sm font-semibold text-gray-700">Tiến độ</span>
+                <Progress
+                  percent={calculateProgress()}
+                  size="small"
+                  status={workOrderDetail.status === 'COMPLETED' ? 'success' : 'active'}
+                  showInfo={false}
+                  className='w-50'
+                />
+                <span className="pl-4 w-10 text-lg font-bold text-blue-600">{calculateProgress()}%</span>
               </div>
-              <Progress
-                percent={calculateProgress()}
-                size="small"
-                status={workOrderDetail.status === 'COMPLETED' ? 'success' : 'active'}
-              />
               <div className="text-xs text-gray-500 mt-2">
                 Đã làm: {workOrderDetail.actualQuantity || 0} / Mục tiêu: {workOrderDetail.plannedQuantity || 0}
               </div>
             </div>
           )}
 
-          <Divider className="my-3" />
+          {/* <Divider className="my-3" /> */}
 
           <div className="mb-4 rounded-xl border border-slate-200 bg-slate-50 p-3 text-sm">
             <div className="flex items-center justify-between gap-3 border-b border-slate-200 pb-2">
@@ -601,13 +635,10 @@ const WorkerScanner: React.FC = () => {
             const stepIndex = userIdx; // 0-based
             const percent = Math.round(((stepIndex + 1) / totalSteps) * 100);
             const currentSchedule = schedules[stepIndex];
-            const stepPlanned = currentSchedule?.plannedQuantity ?? workOrderDetail?.plannedQuantity ?? 0;
-            const stepActual = currentSchedule?.actualQuantity ?? 0;
-
             return (
               <div className="mb p-3 rounded-lg border border-blue-300 bg-blue-50">
                 <div className="flex items-center justify-between mb-2">
-                  <div className="text-sm font-semibold text-blue-700">Máy của bạn - Bước {stepIndex + 1} / {totalSteps}</div>
+                  <div className="text-sm font-semibold text-blue-700">Bước {stepIndex + 1} / {totalSteps}</div>
                   {/* <div className="text-sm font-semibold text-blue-700">Tiến độ bước: {percent}%</div> */}
                   <Progress
                     style={{ width: '60%' }}
@@ -657,8 +688,9 @@ const WorkerScanner: React.FC = () => {
               htmlType="submit"
               icon={<CheckOutlined />}
               loading={loading}
-              disabled={!isPrevReady()}
-              className="w-full h-16 text-xl font-black rounded-xl mt-3 bg-blue-700 hover:bg-blue-800"
+              disabled={!canSubmitReport}
+              className="w-full text-2xl font-black rounded-2xl mt-3 bg-blue-700 hover:bg-blue-800"
+              style={{ height: 80, fontSize: 22, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '0 20px' }}
             >
               GỬI BÁO CÁO
             </Button>

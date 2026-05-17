@@ -33,6 +33,16 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [user, setUser] = useState<AuthUser | null>(null);
   const [isLoading, setIsLoading] = useState(true);
 
+  useEffect(() => {
+    const handleAuthExpired = () => {
+      setUser(null);
+      setIsLoading(false);
+    };
+
+    window.addEventListener('smartmes:auth-expired', handleAuthExpired);
+    return () => window.removeEventListener('smartmes:auth-expired', handleAuthExpired);
+  }, []);
+
   const refreshSession = useCallback(async (): Promise<AuthUser | null> => {
     try {
       const response = await apiClient.get<ApiResponse<AuthUser>>('/users/me');

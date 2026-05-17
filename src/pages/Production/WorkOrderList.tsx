@@ -461,7 +461,7 @@ const WorkOrderList: React.FC = () => {
               <Button onClick={() => form.setFieldsValue({ plannedStartDate: dayjs() })}>Bây giờ</Button>
             </div>
           </Form.Item>
-          <Form.Item name="workCenterId" label="Máy sản xuất" rules={[{ required: true, message: 'Vui lòng chọn máy sản xuất!' }]}>
+          {/* <Form.Item name="workCenterId" label="Máy sản xuất" rules={[{ required: true, message: 'Vui lòng chọn máy sản xuất!' }]}>
             <Select placeholder="Chọn máy">
               {workCenters.map(wc => (
                 <Select.Option key={wc.id} value={wc.id} disabled={wc.currentStatus === 'DOWN'}>
@@ -469,7 +469,7 @@ const WorkOrderList: React.FC = () => {
                 </Select.Option>
               ))}
             </Select>
-          </Form.Item>
+          </Form.Item> */}
           <Form.Item name="priority" label="Độ ưu tiên" initialValue={2}>
             <Select>
               <Select.Option value={1}><Tag color="default">1 - Thấp</Tag></Select.Option>

@@ -16,30 +16,12 @@ const apiClient = axios.create({
 });
 
 let refreshPromise: Promise<void> | null = null;
+const AUTH_EXPIRED_EVENT = 'smartmes:auth-expired';
 
 const clearClientAuthState = () => {
   localStorage.removeItem('token');
+  window.dispatchEvent(new Event(AUTH_EXPIRED_EVENT));
 };
-
-// ⏱️ Retry configuration cho offline mode
-const RETRY_CONFIG = {
-  maxRetries: 5,
-  retryDelay: 1000, // 1 second initial delay
-  maxRetryDelay: 30000, // Max 30 seconds
-  backoffMultiplier: 2,
-};
-
-const shouldRetryRequest = (error: any): boolean => {
-  if (!error.response) {
-    // Network error (no response from server)
-    return true;
-  }
-  const status = error.response.status;
-  // Retry on 408 (Timeout), 429 (Too Many Requests), 5xx (Server errors)
-  return status === 408 || status === 429 || (status >= 500 && status < 600);
-};
-
-const sleep = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
 
 const isAuthEndpoint = (url?: string) => {
   if (!url) return false;
@@ -75,14 +57,12 @@ apiClient.interceptors.response.use(
         return apiClient.request(originalRequest);
       } catch (refreshError) {
         clearClientAuthState();
-        window.location.href = '/login';
         return Promise.reject(refreshError);
       }
     }
 
     if (error.response?.status === 401) {
       clearClientAuthState();
-      window.location.href = '/login';
     }
 
     return Promise.reject(error);
