@@ -1,10 +1,12 @@
 import React, { useEffect, useState } from 'react';
-import { Card, Button, Form, Input, message, Typography, Divider, Tag, Progress, Space } from 'antd';
-import { QrcodeOutlined, LeftOutlined, CheckOutlined } from '@ant-design/icons';
+import { Card, Button, Form, Input, message, Typography, Tag, Progress, Space } from 'antd';
+import { QrcodeOutlined, LeftOutlined, CheckOutlined, LogoutOutlined } from '@ant-design/icons';
 import { Html5QrcodeScanner } from 'html5-qrcode';
 import { reportProgress, getWorkOrderWithSchedules } from '../../services/production.service';
 import { getWorkCenters } from '../../services/master-data.service';
 import { useAuth } from '../../contexts/AuthContext';
+import { useNavigate } from 'react-router-dom';
+import apiClient from '../../services/apiClient';
 
 // --- BẮT ĐẦU: IndexedDB Helper cho Offline Sync ---
 const initDB = (): Promise<IDBDatabase> => {
@@ -50,7 +52,24 @@ const deleteOfflineReport = async (requestId: string) => {
 const { Title, Text } = Typography;
 
 const WorkerScanner: React.FC = () => {
-  const { user } = useAuth();
+  const { user, clearSession } = useAuth();
+  const navigate = useNavigate();
+
+  const handleLogout = async () => {
+    try {
+      await apiClient.post('/auth/logout');
+    } catch {
+      // Do not block logout flow on network/API errors
+    } finally {
+      try {
+        clearSession();
+      } catch (e) {
+        console.warn('clearSession failed', e);
+      }
+      message.info('Đã đăng xuất.');
+      navigate('/login', { replace: true });
+    }
+  };
   const [scanning, setScanning] = useState(false);
   const [scanData, setScanData] = useState<{ id: number; orderNumber: string; workCenterId?: number; workCenterName?: string } | null>(null);
   const [workOrderDetail, setWorkOrderDetail] = useState<any>(null);
@@ -515,9 +534,16 @@ const WorkerScanner: React.FC = () => {
 
   return (
     <div className="min-h-screen bg-gray-100 p-4 pb-20">
-      <div className="text-center mb-6 mt-4">
-        <Title level={3} className="text-blue-700 m-0">SmartMES Mobile</Title>
-        <Text type="secondary">Cổng báo cáo sản xuất tại xưởng</Text>
+      <div className="flex items-center justify-between mb-6 mt-4">
+        <div>
+          <Title level={3} className="text-blue-700 m-0">SmartMES Mobile</Title>
+          <Text type="secondary">Cổng báo cáo sản xuất tại xưởng</Text>
+        </div>
+        <div>
+          <Button type="text" icon={<LogoutOutlined />} onClick={handleLogout} className="text-red-600">
+            Đăng xuất
+          </Button>
+        </div>
       </div>
 
       {!scanData ? (
